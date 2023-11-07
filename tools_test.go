@@ -74,12 +74,24 @@ func TestName(t *testing.T) {
 
 func TestUniqueSlice(t *testing.T) {
 
-	a := []int{1, 1, 2, 2, 4}
+	t.Run("testUniqueIntSlice", func(t *testing.T) {
+		a := []int{1, 1, 2, 2, 4}
 
-	slice := UniqueSlice(a)
+		slice := UniqueSlice(a)
 
-	for _, v := range slice {
-		println(v)
-	}
+		for _, v := range slice {
+			println(v)
+		}
+	})
+
+	t.Run("testUniqueStringSlice", func(t *testing.T) {
+		a := []string{"1", "3", "2", "2", "4"}
+
+		slice := UniqueSlice(a)
+
+		for _, v := range slice {
+			println(v)
+		}
+	})
 
 }

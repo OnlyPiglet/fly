@@ -62,21 +62,16 @@ func UniqueSlice[T comparable](in []T) []T {
 		return []T{}
 	}
 
-	o := make(map[T]int, 0)
+	o := make(map[T]bool, 0)
+	out := make([]T, 0)
 
 	for _, n := range in {
-		if o[n] == 0 {
-			o[n] = 1
+		if !o[n] {
+			o[n] = true
+			out = append(out, n)
 		}
 		continue
 	}
 
-	out := make([]T, len(o))
-
-	i := 0
-	for k := range o {
-		out[i] = k
-		i++
-	}
 	return out
 }
