@@ -51,3 +51,32 @@ func InDstNotInSrc[T comparable](src, dst []T) []T {
 
 	return diff
 }
+
+/*
+*
+去除切片中重复的元素
+*/
+func UniqueSlice[T comparable](in []T) []T {
+
+	if in == nil || len(in) == 0 {
+		return []T{}
+	}
+
+	o := make(map[T]int, 0)
+
+	for _, n := range in {
+		if o[n] == 0 {
+			o[n] = 1
+		}
+		continue
+	}
+
+	out := make([]T, len(o))
+
+	i := 0
+	for k := range o {
+		out[i] = k
+		i++
+	}
+	return out
+}

@@ -71,3 +71,15 @@ func TestName(t *testing.T) {
 		}
 	})
 }
+
+func TestUniqueSlice(t *testing.T) {
+
+	a := []int{1, 1, 2, 2, 4}
+
+	slice := UniqueSlice(a)
+
+	for _, v := range slice {
+		println(v)
+	}
+
+}
