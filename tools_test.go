@@ -3,14 +3,15 @@ package fly
 import (
 	"fmt"
 	"testing"
+	"time"
 )
 
 func TestIsChanClosed(t *testing.T) {
 
-	ch := make(chan struct{})
-	close(ch)
-
 	t.Run("close chan", func(t *testing.T) {
+		ch := make(chan struct{})
+		close(ch)
+		println(IfChanClosed(ch))
 		if !IfChanClosed(ch) {
 			t.Errorf("should be true a closed channel")
 		}
@@ -23,9 +24,32 @@ func TestIsChanClosed(t *testing.T) {
 			t.Errorf("should be false a open channel")
 		}
 		close(ch)
+		println(IfChanClosed(ch))
 		if !IfChanClosed(ch) {
 			t.Errorf("should be true a closed channel")
 		}
+	})
+
+	t.Run("ifeatsign", func(t *testing.T) {
+
+		ch := make(chan struct{}, 1)
+
+		go func() {
+			time.Sleep(2 * time.Second)
+			select {
+			case <-ch:
+				println("receive ch")
+			}
+			time.Sleep(10 * time.Second)
+		}()
+
+		go func() {
+			IfChanClosed(ch)
+			time.Sleep(3 * time.Second)
+		}()
+
+		ch <- struct{}{}
+		time.Sleep(20 * time.Second)
 	})
 
 }

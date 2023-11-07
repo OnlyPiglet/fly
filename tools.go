@@ -5,17 +5,16 @@ import (
 	"unsafe"
 )
 
+/*
+not a atomic op
+*/
 func IfChanClosed[T any](ch chan T) (closed bool) {
-	select {
-	case _, ok := <-ch:
-		if !ok {
-			closed = true
-		}
-	default:
-		closed = false
-	}
-	return closed
-
+	return (*(**struct {
+		_, _   uint
+		_      unsafe.Pointer
+		_      uint16
+		closed uint32
+	})(unsafe.Pointer(&ch))).closed != 0
 }
 
 func QuickStringToBytes(str string) []byte {
