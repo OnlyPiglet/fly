@@ -38,7 +38,7 @@ func TestIsChanClosed(t *testing.T) {
 			time.Sleep(2 * time.Second)
 			select {
 			case <-ch:
-				println("receive ch")
+				println("receive chan")
 			}
 			time.Sleep(10 * time.Second)
 		}()
