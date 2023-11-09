@@ -1,4 +1,4 @@
-package map_tools
+package maptools
 
 import "testing"
 
