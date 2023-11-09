@@ -1,4 +1,4 @@
-package slice
+package slice_tools
 
 import "testing"
 
