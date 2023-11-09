@@ -1,4 +1,4 @@
-package map_tools
+package maptools
 
 func ExistedInMap[K comparable, V any](k K, m map[K]V) bool {
 

@@ -8,7 +8,7 @@ import (
 
 func TestIsChanClosed(t *testing.T) {
 
-	t.Run("close chan", func(t *testing.T) {
+	t.Run("close chantools", func(t *testing.T) {
 		ch := make(chan struct{})
 		close(ch)
 		println(IfChanClosed(ch))
@@ -17,7 +17,7 @@ func TestIsChanClosed(t *testing.T) {
 		}
 	})
 
-	t.Run("open and close chan", func(t *testing.T) {
+	t.Run("open and close chantools", func(t *testing.T) {
 		ch := make(chan int, 1)
 		fmt.Println(IfChanClosed(ch)) // 输出: false
 		if IfChanClosed(ch) {
@@ -38,7 +38,7 @@ func TestIsChanClosed(t *testing.T) {
 			time.Sleep(2 * time.Second)
 			select {
 			case <-ch:
-				println("receive chan")
+				println("receive chantools")
 			}
 			time.Sleep(10 * time.Second)
 		}()
