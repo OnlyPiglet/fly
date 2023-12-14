@@ -20,17 +20,17 @@ type valueCtx struct {
 	key, val any
 }
 
-func GetKeys(ctx context.Context) []string {
-	keys := make([]string, 0)
+func GetKeys(ctx context.Context) []any {
+	keys := make([]any, 0)
 	maps := GetKeyValues(ctx)
 	for k, _ := range maps {
-		keys = append(keys, k.(string))
+		keys = append(keys, k)
 	}
 	return keys
 }
 
-func GetKeyValues(ctx context.Context) map[interface{}]interface{} {
-	m := make(map[interface{}]interface{})
+func GetKeyValues(ctx context.Context) map[any]any {
+	m := make(map[any]any)
 	if reflect.ValueOf(ctx).Kind().String() != "ptr" {
 		return m
 	}
@@ -38,7 +38,7 @@ func GetKeyValues(ctx context.Context) map[interface{}]interface{} {
 	return m
 }
 
-func getKeyValue(ctx context.Context, m map[interface{}]interface{}) {
+func getKeyValue(ctx context.Context, m map[any]any) {
 	ictx := *(*iface)(unsafe.Pointer(&ctx))
 	if ictx.data == 0 {
 		return
