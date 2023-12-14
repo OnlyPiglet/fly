@@ -6,7 +6,7 @@ import (
 )
 
 /*
-not a atomic op
+IfChanClosed please be carefully if want to use to judge if chan closed
 */
 func IfChanClosed[T any](ch chan T) (closed bool) {
 	return (*(**struct {
