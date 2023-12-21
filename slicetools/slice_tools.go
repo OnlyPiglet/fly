@@ -20,6 +20,15 @@ func UniqueSlice[T comparable](in []T) []T {
 	return out
 }
 
+func ContainsElem[T comparable](dst []T, com T) bool {
+	for _, t := range dst {
+		if t == com {
+			return true
+		}
+	}
+	return false
+}
+
 func InDstNotInSrc[T comparable](src, dst []T) []T {
 	m := make(map[T]bool)
 
