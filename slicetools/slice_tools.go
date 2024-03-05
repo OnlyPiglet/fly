@@ -46,3 +46,16 @@ func InDstNotInSrc[T comparable](src, dst []T) []T {
 
 	return diff
 }
+
+func RemoveElem[T comparable](dst []T, com T) []T {
+	m := make([]T, 0)
+
+	for i, _ := range dst {
+		if dst[i] == com {
+			continue
+		}
+		m = append(m, dst[i])
+	}
+
+	return m
+}
