@@ -1,6 +1,9 @@
 package slice_tools
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+)
 
 func TestName(t *testing.T) {
 	t.Run("dst which not in src", func(t *testing.T) {
@@ -34,5 +37,17 @@ func TestUniqueSlice(t *testing.T) {
 			println(v)
 		}
 	})
+
+}
+
+func TestRemoveElem(t *testing.T) {
+
+	a := []string{"a", "v", "c", "s", "a", "12"}
+
+	println(fmt.Sprintf("%+v", a))
+
+	a = RemoveElem[string](a, "12")
+
+	println(fmt.Sprintf("%+v", a))
 
 }
