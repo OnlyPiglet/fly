@@ -1,7 +1,6 @@
 package maptools
 
 import (
-	"regexp"
 	"testing"
 )
 
@@ -17,7 +16,4 @@ func TestExistedInMap(t *testing.T) {
 		println(ExistedInMap("3", m))
 
 	})
-
-	compile, err := regexp.Compile()
-
 }
