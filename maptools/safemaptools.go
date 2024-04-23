@@ -3,8 +3,9 @@ package maptools
 import "sync"
 
 type SafeMap[k comparable, v any] struct {
-	c map[k]v
-	l sync.RWMutex
+	c  map[k]v
+	ct map[k]v
+	l  sync.RWMutex
 }
 
 func NewSafeMap[k comparable, v any](size int) *SafeMap[k, v] {
@@ -14,7 +15,7 @@ func NewSafeMap[k comparable, v any](size int) *SafeMap[k, v] {
 	}
 }
 
-func (sm *SafeMap[k, v]) Get(key k) (v v) {
+func (sm *SafeMap[k, v]) Get(key k) v {
 	sm.l.RLock()
 	defer sm.l.RUnlock()
 	return sm.c[key]
@@ -30,4 +31,7 @@ func (sm *SafeMap[k, v]) Del(key k) {
 	sm.l.Lock()
 	defer sm.l.Unlock()
 	delete(sm.c, key)
+}
+
+func (sm *SafeMap[k, v]) clean() {
 }
