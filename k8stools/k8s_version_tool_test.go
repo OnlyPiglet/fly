@@ -44,6 +44,7 @@ func TestVersioTool(t *testing.T) {
 
 	for i, _ := range tests {
 		version, err := NewK8sVersion(tests[i].Input)
+		println(version.MainVersionStr)
 		if err != nil {
 			panic(err)
 		}

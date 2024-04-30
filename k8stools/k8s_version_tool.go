@@ -19,9 +19,6 @@ type K8sVersion struct {
 
 func NewK8sVersion(version string) (*K8sVersion, error) {
 	v := strings.ToLower(version)
-	if strings.HasPrefix(v, "v") {
-		v = v[1:]
-	}
 	mvs, uv, err := formatK8sVersionFromStr(strings.Trim(v, " "))
 	if err != nil {
 		return nil, err
@@ -34,18 +31,29 @@ func NewK8sVersion(version string) (*K8sVersion, error) {
 }
 
 func formatK8sVersionFromStr(version string) (string, uint32, error) {
+
+	np := false
+	if strings.HasPrefix(version, "v") {
+		version = version[1:]
+		np = true
+	}
 	// 按点号（.）分割版本字符串
 	versionParts := strings.Split(version, ".")
 
 	if len(versionParts) < 2 {
 		return "", 0, fmt.Errorf("version can't be a valid k8s verison %s", version)
 	}
+
 	mainVersionString := fmt.Sprintf("%s%s", versionParts[0], versionParts[1])
 
 	// 将版本字符串转换为整数
 	versionInt, err := strconv.Atoi(mainVersionString)
 	if err != nil {
 		return "", 0, err
+	}
+
+	if np {
+		mainVersionString = fmt.Sprintf("%s%s", "v", mainVersionString)
 	}
 
 	return mainVersionString, uint32(versionInt), nil
