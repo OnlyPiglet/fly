@@ -35,3 +35,9 @@ func (sm *SafeMap[k, v]) Del(key k) {
 
 func (sm *SafeMap[k, v]) clean() {
 }
+
+func (sm *SafeMap[k, v]) GetUnSafeMap() map[k]v {
+	sm.l.RLock()
+	defer sm.l.RUnlock()
+	return sm.c
+}
