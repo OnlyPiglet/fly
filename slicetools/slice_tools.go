@@ -1,15 +1,12 @@
 package slice_tools
 
-type Comparable interface {
-	Equal(e Comparable) bool
-}
-
-func Contains[T Comparable](s []T, e T) bool {
-	for _, a := range s {
-		if a.Equal(e) {
+func ContainBy[T any](slice []T, predicate func(item T) bool) bool {
+	for _, item := range slice {
+		if predicate(item) {
 			return true
 		}
 	}
+
 	return false
 }
 
