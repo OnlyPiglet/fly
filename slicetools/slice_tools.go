@@ -1,5 +1,18 @@
 package slice_tools
 
+type Comparable interface {
+	Equal(e Comparable) bool
+}
+
+func Contains[T Comparable](s []T, e T) bool {
+	for _, a := range s {
+		if a.Equal(e) {
+			return true
+		}
+	}
+	return false
+}
+
 func UniqueSlice[T comparable](in []T) []T {
 
 	if in == nil || len(in) == 0 {
