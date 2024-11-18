@@ -1,8 +1,8 @@
 package slice_tools
 
-func ContainBy[T any](slice []T, predicate func(item T) bool) bool {
-	for _, item := range slice {
-		if predicate(item) {
+func ContainBy[T any](slice []T, dest T, equal func(s T, d T) bool) bool {
+	for _, sitem := range slice {
+		if equal(sitem, dest) {
 			return true
 		}
 	}
