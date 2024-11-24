@@ -10,6 +10,18 @@ func ContainBy[T any](slice []T, dest T, equal func(s T, d T) bool) bool {
 	return false
 }
 
+func Unique[T any](src []T, equal func(s T, d T) bool) []T {
+	dst := make([]T, 0)
+	for _, t := range src {
+		if ContainBy(dst, t, equal) {
+			continue
+		} else {
+			dst = append(dst, t)
+		}
+	}
+	return dst
+}
+
 func FindBy[T any](slice []T, dest T, equal func(s T, d T) bool) *T {
 	for _, sitem := range slice {
 		if equal(sitem, dest) {
