@@ -36,7 +36,7 @@ func RecentFileMaxKept(dir string, maxKept int) error {
 	}
 
 	sort.Slice(all, func(i, j int) bool {
-		return all[i].ModTime.Before(all[j].ModTime)
+		return all[i].ModTime.After(all[j].ModTime)
 	})
 
 	for i, fi := range all {
