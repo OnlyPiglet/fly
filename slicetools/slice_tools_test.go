@@ -2,6 +2,7 @@ package slice_tools
 
 import (
 	"fmt"
+	"log"
 	"testing"
 )
 
@@ -49,5 +50,25 @@ func TestRemoveElem(t *testing.T) {
 	a = RemoveElem[string](a, "12")
 
 	println(fmt.Sprintf("%+v", a))
+
+}
+
+func TestLimitOffset(t *testing.T) {
+	a := []int{1, 2, 3, 4, 5, 6, 7, 8, 9}
+
+	//page = 1 ,pageSize = 2
+	log.Printf("%v", LimitOffset[int](a, 1, 2))
+	log.Printf("%v", a[0:2])
+
+	//page = 2 ,pageSize = 2
+	log.Printf("%v", LimitOffset[int](a, 2, 2))
+
+	log.Printf("%v", a[2:4])
+
+	//page = 2 ,pageSize = 3
+	log.Printf("%v", LimitOffset[int](a, 2, 3))
+	log.Printf("%v", a[3:6])
+
+	log.Printf("%v", LimitOffset[int](a, 1, 10))
 
 }

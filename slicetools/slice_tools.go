@@ -10,6 +10,25 @@ func ContainBy[T any](slice []T, dest T, equal func(s T, d T) bool) bool {
 	return false
 }
 
+func LimitOffset[T any](slice []T, page int, pageSize int) []T {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 10
+	}
+	mr := len(slice)
+	l := (page - 1) * pageSize
+	r := page * pageSize
+	if l > mr {
+		l = mr
+	}
+	if r > mr {
+		r = mr
+	}
+	return slice[l:r]
+}
+
 func Unique[T any](src []T, equal func(s T, d T) bool) []T {
 	dst := make([]T, 0)
 	for _, t := range src {
