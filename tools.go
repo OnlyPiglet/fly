@@ -18,17 +18,24 @@ func IfChanClosed[T any](ch chan T) (closed bool) {
 }
 
 func QuickStringToBytes(str string) []byte {
-	if str == "" {
-		return []byte{}
-	}
-	sh := &reflect.SliceHeader{
-		Data: (*reflect.StringHeader)(unsafe.Pointer(&str)).Data,
-		Len:  len(str),
-		Cap:  len(str),
-	}
-	return *(*[]byte)(unsafe.Pointer(sh))
+	return s2b(str)
 }
 
 func QuickBytesToString(b []byte) string {
+	return b2s(b)
+}
+
+// b2s thanks for fasthttp s2b_new.go
+func b2s(b []byte) string {
 	return *(*string)(unsafe.Pointer(&b))
+}
+
+// s2b thanks for fasthttp b2s_new.go
+func s2b(s string) (b []byte) {
+	bh := (*reflect.SliceHeader)(unsafe.Pointer(&b))
+	sh := (*reflect.StringHeader)(unsafe.Pointer(&s))
+	bh.Data = sh.Data
+	bh.Cap = sh.Len
+	bh.Len = sh.Len
+	return b
 }
