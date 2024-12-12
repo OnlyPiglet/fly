@@ -41,3 +41,7 @@ func (sm *SafeMap[k, v]) GetUnSafeMap() map[k]v {
 	defer sm.l.RUnlock()
 	return sm.c
 }
+
+func (sm *SafeMap[k, v]) GetRWLock() sync.RWMutex {
+	return sm.l
+}
