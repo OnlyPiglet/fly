@@ -45,3 +45,13 @@ func (sm *SafeMap[k, v]) GetUnSafeMap() map[k]v {
 func (sm *SafeMap[k, v]) GetRWLock() sync.RWMutex {
 	return sm.l
 }
+
+func (sm *SafeMap[k, v]) GetKeys() []k {
+	sm.l.RLock()
+	defer sm.l.RUnlock()
+	ks := make([]k, 0)
+	for k, _ := range sm.c {
+		ks = append(ks, k)
+	}
+	return ks
+}
