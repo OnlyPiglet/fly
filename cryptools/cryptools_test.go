@@ -1,6 +1,7 @@
 package cryptools
 
 import (
+	"encoding/base64"
 	"testing"
 )
 
@@ -18,4 +19,18 @@ func TestDS(t *testing.T) {
 	encrypt := RsaEncrypt([]byte("123123"), []byte(Pub))
 	decrypt := RsaDecrypt(encrypt, []byte(Pri))
 	println(string(decrypt))
+}
+
+func TestAesEncrypt(t *testing.T) {
+	key := []byte("1234567890123456")
+	content := "asdassdasd武·1"
+	encrypt := AesCbcEncrypt([]byte(content), key)
+	miwen := base64.StdEncoding.EncodeToString(encrypt)
+	println(miwen)
+
+	mingwen, _ := base64.StdEncoding.DecodeString(miwen)
+
+	decrypt := AesCbcDecrypt(mingwen, key)
+	println(string(decrypt))
+
 }
