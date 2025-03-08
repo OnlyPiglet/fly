@@ -22,15 +22,15 @@ func TestDS(t *testing.T) {
 }
 
 func TestAesEncrypt(t *testing.T) {
-	key := []byte("1234567890123456")
-	content := "asdassdasd武·1"
-	encrypt := AesCbcEncrypt([]byte(content), key)
+	key := []byte("Ashaushajshua@23")
+	content := "{\"username\":\"admin\",\"password\":\"oeXcmq\"}"
+	encrypt := AesEcbEncrypt([]byte(content), key)
 	miwen := base64.StdEncoding.EncodeToString(encrypt)
 	println(miwen)
 
-	mingwen, _ := base64.StdEncoding.DecodeString(miwen)
+	mingwen, _ := base64.StdEncoding.DecodeString("9dfFNfn1J1EYkIfNQ1uG9Djp4BTatKsLYzn/R3I/GmaF7MLmLn/xwMcJpbtfV3RqhaRS1uUK5l4X019Ac+/hikZHhUNJ6OSo1wJIxkKMhIZFsWPA9SaRnebH1qsJeLZJzEhhEQ00MTgZuZJ+0MpsXqYirjbHRK7QPGxOWUfmd1RU/CpGUQSZeRvyZ4oR6Gl7+YC5sizU/Vq59TkU/Zs4QZExKRBWoR/I/TtHYTfcBCzEdBBhE4U9uxyQwLcMFjv/UODmxoOwy0b2T4UHdJKPiKdHcawgvsfK0R43qzAffASdXCpPqXvfVoj3WO3E8RqY")
 
-	decrypt := AesCbcDecrypt(mingwen, key)
+	decrypt := AesEcbDecrypt(mingwen, key)
 	println(string(decrypt))
 
 }

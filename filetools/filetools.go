@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -51,4 +52,13 @@ func RecentFileMaxKept(dir string, maxKept int) error {
 	}
 
 	return nil
+}
+
+// GetCurrentPath 获取当前路径，比如：E:/abc/data/test
+func GetCurrentPath() string {
+	dir, err := os.Getwd()
+	if err != nil {
+		fmt.Println(err)
+	}
+	return strings.Replace(dir, "\\", "/", -1)
 }
