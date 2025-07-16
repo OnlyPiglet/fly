@@ -9,6 +9,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
+	"fmt"
 	"io"
 	"os"
 )
@@ -645,4 +646,46 @@ func RsaDecryptFile(data []byte, privateKeyFileName string) []byte {
 	}
 
 	return plainText
+}
+
+func GenerateRSAKey(keySize int) (privatePEM, publicPEM string, err error) {
+	// 生成RSA私钥
+	privateKey, err := rsa.GenerateKey(rand.Reader, keySize)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to generate private key: %w", err)
+	}
+
+	// 验证私钥有效性
+	if err = privateKey.Validate(); err != nil {
+		return "", "", fmt.Errorf("invalid private key: %w", err)
+	}
+
+	// 将私钥编码为PKCS#1 DER格式
+	privateDER := x509.MarshalPKCS1PrivateKey(privateKey)
+
+	// 创建私钥PEM块
+	privateBlock := &pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: privateDER,
+	}
+
+	// 编码私钥为PEM字符串
+	privatePEM = string(pem.EncodeToMemory(privateBlock))
+
+	// 提取公钥
+	publicKey := &privateKey.PublicKey
+
+	// 将公钥编码为PKCS#1 DER格式
+	publicDER := x509.MarshalPKCS1PublicKey(publicKey)
+
+	// 创建公钥PEM块
+	publicBlock := &pem.Block{
+		Type:  "RSA PUBLIC KEY",
+		Bytes: publicDER,
+	}
+
+	// 编码公钥为PEM字符串
+	publicPEM = string(pem.EncodeToMemory(publicBlock))
+
+	return privatePEM, publicPEM, nil
 }
