@@ -14,7 +14,9 @@ import (
 
 /**
     多级缓存库，l1为内存缓存;redis为2级缓存;l3是当1，2级缓存不存在提供的获取对象的函数，可以是从mysql中获取，http调用获取等等
-	memory l1cache <- redis l2cache <- l3 directFunc (使用单飞，防止击穿)
+    Multi-level cache library: L1 is memory cache; Redis is L2 cache; L3 is a function to get objects when L1 and L2 cache don't exist, can be from MySQL, HTTP calls, etc.
+	memory l1cache <- redis l2cache <- l3 directFunc (使用单飞，防止击穿),使用 L3FlightErrContinue 控制当 l3 获取结果失败 是否继续单飞
+	memory l1cache <- redis l2cache <- l3 directFunc (using singleflight to prevent cache stampede), use L3FlightErrContinue to control whether to continue singleflight when L3 result fails
 */
 
 type Key interface {
@@ -36,14 +38,17 @@ type L1RedisClient interface{}
 type XCache[V any] struct {
 	CachePrefixKey string
 	// L1Enable 内存缓存是否开启
+	// L1Enable whether memory cache is enabled
 	L1Enable      bool
 	L1CacheTTL    time.Duration
 	L1CacheClient otter.Cache[string, V]
 	// L2Enable Redis是否进行二级缓存
+	// L2Enable whether Redis L2 cache is enabled
 	L2Enable      bool
 	L2CacheTTL    time.Duration
 	L2RedisClient *redis.Client
 	// 用于防止缓存击穿的单飞模式
+	// Singleflight pattern to prevent cache stampede
 	L3DirectFunc        DirectFunc[V]
 	flightGroup         *singleflight.Group
 	L3FlightErrContinue bool
@@ -75,7 +80,8 @@ func WithPrefixKey[V any](prefixKey string) CacheOptionFunc[V] {
 	}
 }
 
-// WithL1Cache enables l1 cache with TTL with capacity
+// WithL1Cache enables l1 cache with TTL with capacity,TTL为0时 永不过期
+// WithL1Cache enables L1 cache with TTL and capacity, TTL=0 means never expire
 func WithL1Cache[V any](enable bool, capacity int, ttl time.Duration) CacheOptionFunc[V] {
 	return func(opt *CacheOption[V]) {
 		opt.L1Enable = enable
@@ -84,7 +90,8 @@ func WithL1Cache[V any](enable bool, capacity int, ttl time.Duration) CacheOptio
 	}
 }
 
-// WithL2Cache enables l2 cache with Redis config and TTL
+// WithL2Cache enables l2 cache with Redis config and TTL, 0 永不过期
+// WithL2Cache enables L2 cache with Redis config and TTL, TTL=0 means never expire
 func WithL2Cache[V any](enable bool, config *redis.Options, ttl time.Duration) CacheOptionFunc[V] {
 	return func(opt *CacheOption[V]) {
 		opt.L2Enable = enable
@@ -110,7 +117,7 @@ func NewCacheBuilder[V any](optFuncs ...CacheOptionFunc[V]) (*XCache[V], error) 
 	// Initialize default options
 	opt := &CacheOption[V]{
 		Capacity:            1000, // default capacity
-		L1Enable:            true, // 默认启用L1缓存
+		L1Enable:            true, // 默认启用L1缓存 (L1 cache enabled by default)
 		L1CacheTTL:          5 * time.Minute,
 		L2Enable:            false,
 		L2CacheTTL:          10 * time.Minute,
@@ -233,6 +240,7 @@ func (xc *XCache[V]) put(ctx context.Context, key string, v V) error {
 	var l1Err, l2Err error
 
 	// 写入L1缓存
+	// Write to L1 cache
 	if xc.L1Enable {
 		if ok := xc.L1CacheClient.Set(key, v); !ok {
 			l1Err = fmt.Errorf("l1 memory cache set failed, cost too much")
@@ -241,6 +249,7 @@ func (xc *XCache[V]) put(ctx context.Context, key string, v V) error {
 	}
 
 	// 写入L2缓存
+	// Write to L2 cache
 	if xc.L2Enable {
 		if vb, e := json.Marshal(v); e != nil {
 			l2Err = fmt.Errorf("l2 cache marshal failed: %w", e)
