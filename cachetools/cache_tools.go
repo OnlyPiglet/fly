@@ -4,11 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
+	"time"
+
 	"github.com/maypok86/otter"
 	redis "github.com/redis/go-redis/v9"
 	"golang.org/x/sync/singleflight"
-	"log/slog"
-	"time"
 )
 
 /**
@@ -16,7 +17,17 @@ import (
 	memory l1cache <- redis l2cache <- l3 directFunc (使用单飞，防止击穿)
 */
 
-type DirectFunc[V any] func(ctx context.Context, k string) (V, error)
+type Key interface {
+	ToString() string
+}
+
+type StringKey string
+
+func (k StringKey) ToString() string {
+	return string(k)
+}
+
+type DirectFunc[V any] func(ctx context.Context, k Key) (V, error)
 
 type LocalL2Client interface{}
 
@@ -24,32 +35,34 @@ type L1RedisClient interface{}
 
 type XCache[V any] struct {
 	CachePrefixKey string
-	L3DirectFunc   DirectFunc[V]
-	// L2Enable Redis是否进行二级缓存
-	L2Enable      bool
-	L2RedisClient *redis.Client
-	L2CacheTTL    time.Duration
 	// L1Enable 内存缓存是否开启
-	L1CacheClient otter.Cache[string, V]
 	L1Enable      bool
 	L1CacheTTL    time.Duration
+	L1CacheClient otter.Cache[string, V]
+	// L2Enable Redis是否进行二级缓存
+	L2Enable      bool
+	L2CacheTTL    time.Duration
+	L2RedisClient *redis.Client
 	// 用于防止缓存击穿的单飞模式
-	flightGroup *singleflight.Group
+	L3DirectFunc        DirectFunc[V]
+	flightGroup         *singleflight.Group
+	L3FlightErrContinue bool
 }
 
-func (xc *XCache[V]) realKey(k string) string {
-	return fmt.Sprintf("%s:%s", xc.CachePrefixKey, k)
+func (xc *XCache[V]) realKey(k Key) string {
+	return fmt.Sprintf("%s:%s", xc.CachePrefixKey, k.ToString())
 }
 
 type CacheOption[V any] struct {
-	PrefixKey  string
-	Capacity   int
-	L1Enable   bool
-	L1CacheTTL time.Duration
-	L2Enable   bool
-	L2Config   *redis.Options
-	L2CacheTTL time.Duration
-	DirectFunc DirectFunc[V]
+	PrefixKey           string
+	Capacity            int
+	L1Enable            bool
+	L1CacheTTL          time.Duration
+	L2Enable            bool
+	L2Config            *redis.Options
+	L2CacheTTL          time.Duration
+	DirectFunc          DirectFunc[V]
+	L3FlightErrContinue bool
 }
 
 // CacheOptionFunc defines a function type for configuring CacheOption
@@ -87,14 +100,21 @@ func WithDirectFunc[V any](directFunc DirectFunc[V]) CacheOptionFunc[V] {
 	}
 }
 
+func WithL3FlightErrContinue[V any](con bool) CacheOptionFunc[V] {
+	return func(opt *CacheOption[V]) {
+		opt.L3FlightErrContinue = con
+	}
+}
+
 func NewCacheBuilder[V any](optFuncs ...CacheOptionFunc[V]) (*XCache[V], error) {
 	// Initialize default options
 	opt := &CacheOption[V]{
-		Capacity:   1000, // default capacity
-		L1Enable:   true, // 默认启用L1缓存
-		L1CacheTTL: 5 * time.Minute,
-		L2Enable:   false,
-		L2CacheTTL: 10 * time.Minute,
+		Capacity:            1000, // default capacity
+		L1Enable:            true, // 默认启用L1缓存
+		L1CacheTTL:          5 * time.Minute,
+		L2Enable:            false,
+		L2CacheTTL:          10 * time.Minute,
+		L3FlightErrContinue: false,
 	}
 
 	// Apply all option functions
@@ -122,6 +142,7 @@ func NewCacheBuilder[V any](optFuncs ...CacheOptionFunc[V]) (*XCache[V], error) 
 	cb.L2CacheTTL = opt.L2CacheTTL
 	cb.L3DirectFunc = opt.DirectFunc
 	cb.flightGroup = &singleflight.Group{}
+	cb.L3FlightErrContinue = opt.L3FlightErrContinue
 
 	if opt.L1Enable {
 		cache, err := otter.MustBuilder[string, V](opt.Capacity).
@@ -142,10 +163,9 @@ func NewCacheBuilder[V any](optFuncs ...CacheOptionFunc[V]) (*XCache[V], error) 
 	return cb, nil
 }
 
-func (xc *XCache[V]) Get(ctx context.Context, key string) (V, error) {
+func (xc *XCache[V]) Get(ctx context.Context, key Key) (V, error) {
 	realKey := xc.realKey(key)
 
-	// 1. 尝试从L1缓存获取
 	if xc.L1Enable {
 		if v, ok := xc.L1CacheClient.Get(realKey); ok {
 			slog.Debug(fmt.Sprintf("get key %s from l1 cache", key))
@@ -153,7 +173,6 @@ func (xc *XCache[V]) Get(ctx context.Context, key string) (V, error) {
 		}
 	}
 
-	// 2. 尝试从L2缓存获取
 	if xc.L2Enable {
 		if vs, e := xc.L2RedisClient.Get(ctx, realKey).Result(); e == nil {
 			v := new(V)
@@ -162,7 +181,6 @@ func (xc *XCache[V]) Get(ctx context.Context, key string) (V, error) {
 				slog.Error("l2 cache get Unmarshal err", "error", em.Error())
 			} else {
 				slog.Debug(fmt.Sprintf("get key %s from l2 cache", key))
-				// 异步回写到L1缓存
 				if xc.L1Enable {
 					go func() {
 						xc.L1CacheClient.Set(realKey, *v)
@@ -173,16 +191,14 @@ func (xc *XCache[V]) Get(ctx context.Context, key string) (V, error) {
 		}
 	}
 
-	// 3. 使用单飞模式防止缓存击穿，从l3获取数据,并回写到 l1,l2 缓存中
 	return xc.getFromL3WithSingleFlight(ctx, key)
 }
 
-func (xc *XCache[V]) Set(ctx context.Context, key string, v V) error {
+func (xc *XCache[V]) Put(ctx context.Context, key Key, v V) error {
 	return xc.put(ctx, xc.realKey(key), v)
 }
 
-// getFromL3WithSingleFlight 使用单飞模式从L3获取数据，防止缓存击穿
-func (xc *XCache[V]) getFromL3WithSingleFlight(ctx context.Context, key string) (V, error) {
+func (xc *XCache[V]) getFromL3WithSingleFlight(ctx context.Context, key Key) (V, error) {
 	realKey := xc.realKey(key)
 
 	slog.Debug(fmt.Sprintf("get key %s from L3 directFunc", key))
@@ -190,7 +206,9 @@ func (xc *XCache[V]) getFromL3WithSingleFlight(ctx context.Context, key string) 
 	v, err, shared := xc.flightGroup.Do(realKey, func() (interface{}, error) {
 		value, err := xc.L3DirectFunc(ctx, key)
 		if err != nil {
-			xc.flightGroup.Forget(key)
+			if xc.L3FlightErrContinue {
+				xc.flightGroup.Forget(key.ToString())
+			}
 			return value, err
 		}
 		go func() {
@@ -244,9 +262,4 @@ func (xc *XCache[V]) put(ctx context.Context, key string, v V) error {
 	}
 
 	return nil
-}
-
-// Put 对外提供的缓存写入接口
-func (xc *XCache[V]) Put(ctx context.Context, key string, v V) error {
-	return xc.put(ctx, xc.realKey(key), v)
 }
