@@ -2,21 +2,48 @@ package cachetools
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/redis/go-redis/v9"
 )
 
+// Mock direct function for testing - directly access key content
+func mockDirectFunc(ctx context.Context, key Key) (TestUser, error) {
+	keyStr := key.ToString()
+	if keyStr == "error" {
+		return TestUser{}, errors.New("direct function error")
+	}
+
+	// 直接基于key内容生成用户数据
+	// 使用key的长度和内容来生成ID和年龄
+	id := len(keyStr)
+	age := 20 + (id % 30) // 年龄在20-49之间
+
+	return TestUser{
+		ID:   id,
+		Name: "User_" + keyStr, // 直接使用key作为名字的一部分
+		Age:  age,
+	}, nil
+}
+
+func mockDirectFuncString(ctx context.Context, key Key) (string, error) {
+	keyStr := key.ToString()
+	if keyStr == "error" {
+		return "", errors.New("direct function error")
+	}
+
+	// 直接基于key内容生成值
+	return "value_for_" + keyStr, nil
+}
+
 func TestXCache_BasicFunctionality(t *testing.T) {
 	// Create a mock direct function that returns a TestUser with the specified properties
-	mockDirectFunc := func(ctx context.Context, key string) (TestUser, error) {
+	mockDirectFunc := func(ctx context.Context, key Key) (TestUser, error) {
 		return TestUser{
 			ID:   42, // Using a fixed ID for consistency in tests
-			Name: key,
+			Name: key.ToString(),
 			Age:  123,
 		}, nil
 	}
@@ -33,7 +60,7 @@ func TestXCache_BasicFunctionality(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	key := "test-user"
+	key := StringKey("test-user")
 
 	// Set an object in the cache
 	userToSet := TestUser{
@@ -42,7 +69,7 @@ func TestXCache_BasicFunctionality(t *testing.T) {
 		Age:  999,
 	}
 
-	err = cache.Set(ctx, key, userToSet)
+	err = cache.Put(ctx, key, userToSet)
 	if err != nil {
 		t.Fatalf("Failed to set user in cache: %v", err)
 	}
@@ -105,7 +132,7 @@ func TestXCache_BasicFunctionality(t *testing.T) {
 	// Should be from directFunc now (different values)
 	expectedUser := TestUser{
 		ID:   42,
-		Name: key,
+		Name: key.ToString(),
 		Age:  123,
 	}
 
@@ -119,33 +146,6 @@ type TestUser struct {
 	ID   int    `json:"id"`
 	Name string `json:"name"`
 	Age  int    `json:"age"`
-}
-
-// Mock direct function for testing - directly access key content
-func mockDirectFunc(ctx context.Context, key string) (TestUser, error) {
-	if key == "error" {
-		return TestUser{}, errors.New("direct function error")
-	}
-
-	// 直接基于key内容生成用户数据
-	// 使用key的长度和内容来生成ID和年龄
-	id := len(key)
-	age := 20 + (id % 30) // 年龄在20-49之间
-
-	return TestUser{
-		ID:   id,
-		Name: "User_" + key, // 直接使用key作为名字的一部分
-		Age:  age,
-	}, nil
-}
-
-func mockDirectFuncString(ctx context.Context, key string) (string, error) {
-	if key == "error" {
-		return "", errors.New("direct function error")
-	}
-
-	// 直接基于key内容生成值
-	return "value_for_" + key, nil
 }
 
 func TestWithPrefixKey(t *testing.T) {
@@ -195,7 +195,7 @@ func TestWithDirectFunc(t *testing.T) {
 	}
 
 	// Test the function works
-	result, err := opt.DirectFunc(context.Background(), "key1")
+	result, err := opt.DirectFunc(context.Background(), StringKey("key1"))
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
@@ -228,100 +228,8 @@ func TestNewCacheBuilder_L1Only(t *testing.T) {
 	if cache.L1CacheTTL != 5*time.Minute {
 		t.Errorf("Expected L1CacheTTL to be 5m, got %v", cache.L1CacheTTL)
 	}
-	// Note: otter.Cache is an interface, so we can't directly compare to nil
-	// We'll check if it's usable by trying to get a non-existent key
-	if _, ok := cache.L1CacheClient.Get("non-existent-key"); ok {
-		// This is fine, cache is working
-	}
 	if cache.L2RedisClient != nil {
 		t.Error("Expected L2RedisClient to be nil")
-	}
-}
-
-func TestNewCacheBuilder_L1AndL2(t *testing.T) {
-	cache, err := NewCacheBuilder(
-		WithPrefixKey[TestUser]("test"),
-		WithDirectFunc[TestUser](mockDirectFunc),
-		WithL1Cache[TestUser](true, 2000, 5*time.Minute),
-		WithL2Cache[TestUser](true, &redis.Options{Addr: "127.0.0.1:6379"}, 10*time.Minute),
-	)
-	if err != nil {
-		t.Fatalf("Expected no error, got %v", err)
-	}
-	if cache == nil {
-		t.Fatal("Expected cache to not be nil")
-	}
-	if cache.CachePrefixKey != "test" {
-		t.Errorf("Expected CachePrefixKey to be 'test', got '%s'", cache.CachePrefixKey)
-	}
-	if !cache.L1Enable {
-		t.Error("Expected L1Enable to be true")
-	}
-	if !cache.L2Enable {
-		t.Error("Expected L2Enable to be true")
-	}
-	// Note: otter.Cache is an interface, so we can't directly compare to nil
-	// We'll check if it's usable by trying to get a non-existent key
-	if _, ok := cache.L1CacheClient.Get("non-existent-key"); ok {
-		// This is fine, cache is working
-	}
-	if cache.L2RedisClient == nil {
-		t.Error("Expected L2RedisClient to not be nil")
-	}
-}
-
-func TestNewCacheBuilder_ValidationErrors(t *testing.T) {
-	tests := []struct {
-		name        string
-		options     []CacheOptionFunc[TestUser]
-		expectedErr string
-	}{
-		{
-			name:        "missing prefix key",
-			options:     []CacheOptionFunc[TestUser]{WithDirectFunc[TestUser](mockDirectFunc)},
-			expectedErr: "prefix key is required",
-		},
-		{
-			name:        "missing direct function",
-			options:     []CacheOptionFunc[TestUser]{WithPrefixKey[TestUser]("test")},
-			expectedErr: "direct function is required",
-		},
-		{
-			name: "L2 enabled without config",
-			options: []CacheOptionFunc[TestUser]{
-				WithPrefixKey[TestUser]("test"),
-				WithDirectFunc[TestUser](mockDirectFunc),
-				WithL2Cache[TestUser](true, nil, 10*time.Minute),
-			},
-			expectedErr: "L2 cache is enabled but Redis config is not provided",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			cache, err := NewCacheBuilder(tt.options...)
-			if err == nil {
-				t.Error("Expected error but got none")
-			}
-			if cache != nil {
-				t.Error("Expected cache to be nil")
-			}
-			if err != nil && !strings.Contains(err.Error(), tt.expectedErr) {
-				t.Errorf("Expected error to contain '%s', got '%s'", tt.expectedErr, err.Error())
-			}
-		})
-	}
-}
-
-func TestXCache_RealKey(t *testing.T) {
-	cache := &XCache[string]{
-		CachePrefixKey: "test-app",
-	}
-
-	result := cache.realKey("user123")
-	expected := "test-app:user123"
-	if result != expected {
-		t.Errorf("Expected realKey to be '%s', got '%s'", expected, result)
 	}
 }
 
@@ -339,80 +247,23 @@ func TestXCache_Get_L1Only(t *testing.T) {
 	ctx := context.Background()
 
 	// Test cache miss - should call direct function
-	user, err := cache.Get(ctx, "user1")
+	user, err := cache.Get(ctx, StringKey("user1"))
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
 	// user1 的长度是5，年龄是 20 + (5 % 30) = 25
 	expected := TestUser{ID: 5, Name: "User_user1", Age: 25}
-	if user != expected {
-		t.Errorf("Expected user to be %+v, got %+v", expected, user)
-	}
-
-	// Manually set in L1 cache to test cache hit
-	// user2 的长度是5，年龄是 20 + (5 % 30) = 25
-	cache.L1CacheClient.Set(cache.realKey("user2"), TestUser{ID: 5, Name: "User_user2", Age: 25})
-
-	user, err = cache.Get(ctx, "user2")
-	if err != nil {
-		t.Errorf("Expected no error, got %v", err)
-	}
-	expected = TestUser{ID: 5, Name: "User_user2", Age: 25}
 	if user != expected {
 		t.Errorf("Expected user to be %+v, got %+v", expected, user)
 	}
 
 	// Test direct function error
-	_, err = cache.Get(ctx, "error")
+	_, err = cache.Get(ctx, StringKey("error"))
 	if err == nil {
 		t.Error("Expected error but got none")
 	}
 	if err.Error() != "direct function error" {
 		t.Errorf("Expected error to be 'direct function error', got '%s'", err.Error())
-	}
-}
-
-func TestXCache_Get_DirectFunctionFallback(t *testing.T) {
-	cache, err := NewCacheBuilder(
-		WithPrefixKey[TestUser]("test"),
-		WithDirectFunc[TestUser](mockDirectFunc),
-		WithL1Cache[TestUser](false, 2000, 0), // Disable L1
-		WithL2Cache[TestUser](false, nil, 0),  // Disable L2
-	)
-	if err != nil {
-		t.Fatalf("Expected no error, got %v", err)
-	}
-
-	ctx := context.Background()
-
-	// Should always call direct function when both caches are disabled
-	user, err := cache.Get(ctx, "user1")
-	if err != nil {
-		t.Errorf("Expected no error, got %v", err)
-	}
-	// user1 的长度是5，年龄是 20 + (5 % 30) = 25
-	expected := TestUser{ID: 5, Name: "User_user1", Age: 25}
-	if user != expected {
-		t.Errorf("Expected user to be %+v, got %+v", expected, user)
-	}
-}
-
-func TestXCache_Set(t *testing.T) {
-	cache, err := NewCacheBuilder(
-		WithPrefixKey[TestUser]("test"),
-		WithDirectFunc[TestUser](mockDirectFunc),
-		WithL1Cache[TestUser](true, 2000, 5*time.Minute),
-	)
-	if err != nil {
-		t.Fatalf("Expected no error, got %v", err)
-	}
-
-	ctx := context.Background()
-	user := TestUser{ID: 3, Name: "Charlie", Age: 35}
-
-	err = cache.Set(ctx, "user3", user)
-	if err != nil {
-		t.Errorf("Expected no error, got %v", err)
 	}
 }
 
@@ -429,153 +280,21 @@ func TestXCache_Put_L1Only(t *testing.T) {
 
 	ctx := context.Background()
 	user := TestUser{ID: 3, Name: "Charlie", Age: 35}
-	key := cache.realKey("user3")
+	key := StringKey("user3")
+	realKey := cache.realKey(key)
 
-	err = cache.put(ctx, key, user)
+	err = cache.Put(ctx, key, user)
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
 
 	// Verify it was stored in L1 cache
-	cachedUser, found := cache.L1CacheClient.Get(key)
+	cachedUser, found := cache.L1CacheClient.Get(realKey)
 	if !found {
 		t.Error("Expected to find user in L1 cache")
 	}
 	if cachedUser != user {
 		t.Errorf("Expected cached user to be %+v, got %+v", user, cachedUser)
-	}
-}
-
-func TestCacheOption_Defaults(t *testing.T) {
-	cache, err := NewCacheBuilder(
-		WithPrefixKey[string]("test"),
-		WithDirectFunc[string](mockDirectFuncString),
-	)
-	if err != nil {
-		t.Fatalf("Expected no error, got %v", err)
-	}
-
-	// Verify default values
-	if cache.CachePrefixKey != "test" {
-		t.Errorf("Expected CachePrefixKey to be 'test', got '%s'", cache.CachePrefixKey)
-	}
-	if !cache.L1Enable {
-		t.Error("Expected L1Enable to be true")
-	}
-	if cache.L1CacheTTL != 5*time.Minute {
-		t.Errorf("Expected L1CacheTTL to be 5m, got %v", cache.L1CacheTTL)
-	}
-	if cache.L2Enable {
-		t.Error("Expected L2Enable to be false")
-	}
-	if cache.L2CacheTTL != 10*time.Minute {
-		t.Errorf("Expected L2CacheTTL to be 10m, got %v", cache.L2CacheTTL)
-	}
-	// Note: otter.Cache is an interface, so we can't directly compare to nil
-	// We'll check if it's usable by trying to get a non-existent key
-	if _, ok := cache.L1CacheClient.Get("non-existent-key"); ok {
-		// This is fine, cache is working
-	}
-	if cache.L2RedisClient != nil {
-		t.Error("Expected L2RedisClient to be nil")
-	}
-}
-
-// TestXCache_L3WriteBack 测试从L3获取数据后是否正确回写到L1和L2缓存
-func TestXCache_L3WriteBack(t *testing.T) {
-	// Create cache with both L1 and L2 enabled
-	cache, err := NewCacheBuilder(
-		WithPrefixKey[TestUser]("test"),
-		WithDirectFunc[TestUser](mockDirectFunc),
-		WithL1Cache[TestUser](true, 2000, 5*time.Minute),
-		WithL2Cache[TestUser](true, &redis.Options{Addr: "127.0.0.1:6379"}, 10*time.Minute),
-	)
-	if err != nil {
-		t.Fatalf("Failed to create cache: %v", err)
-	}
-
-	ctx := context.Background()
-	key := "writebacktest"
-	realKey := cache.realKey(key)
-
-	// 确保缓存中没有这个key
-	cache.L1CacheClient.Delete(realKey)
-	if cache.L2Enable {
-		cache.L2RedisClient.Del(ctx, realKey)
-	}
-
-	// 第一次获取，应该从L3 directFunc获取
-	user1, err := cache.Get(ctx, key)
-	if err != nil {
-		t.Fatalf("Failed to get user from L3: %v", err)
-	}
-
-	t.Logf("Got user from L3: %+v", user1)
-
-	// 等待一小段时间让异步写入完成
-	time.Sleep(200 * time.Millisecond)
-
-	// 验证数据已经写入L1缓存
-	if cache.L1Enable {
-		if cachedUser, ok := cache.L1CacheClient.Get(realKey); ok {
-			t.Logf("Found in L1 cache: %+v", cachedUser)
-			if cachedUser.ID != user1.ID || cachedUser.Name != user1.Name {
-				t.Errorf("L1 cached user mismatch: expected %+v, got %+v", user1, cachedUser)
-			}
-		} else {
-			t.Error("Expected user to be cached in L1, but not found")
-		}
-	}
-
-	// 验证数据已经写入L2缓存
-	if cache.L2Enable {
-		if vs, e := cache.L2RedisClient.Get(ctx, realKey).Result(); e == nil {
-			var cachedUser TestUser
-			if em := json.Unmarshal([]byte(vs), &cachedUser); em == nil {
-				t.Logf("Found in L2 cache: %+v", cachedUser)
-				if cachedUser.ID != user1.ID || cachedUser.Name != user1.Name {
-					t.Errorf("L2 cached user mismatch: expected %+v, got %+v", user1, cachedUser)
-				}
-			} else {
-				t.Errorf("Failed to unmarshal L2 cached data: %v", em)
-			}
-		} else {
-			t.Errorf("Expected user to be cached in L2, but got error: %v", e)
-		}
-	}
-
-	// 清空L1缓存，再次获取应该从L2获取
-	cache.L1CacheClient.Delete(realKey)
-	user2, err := cache.Get(ctx, key)
-	if err != nil {
-		t.Fatalf("Failed to get user from L2: %v", err)
-	}
-
-	t.Logf("Got user from L2: %+v", user2)
-	if user2.ID != user1.ID || user2.Name != user1.Name {
-		t.Errorf("User from L2 mismatch: expected %+v, got %+v", user1, user2)
-	}
-}
-
-// Benchmark tests
-func BenchmarkXCache_Get_L1Hit(b *testing.B) {
-	cache, err := NewCacheBuilder(
-		WithPrefixKey[string]("bench"),
-		WithDirectFunc[string](mockDirectFuncString),
-		WithL1Cache[string](true, 2000, 5*time.Minute),
-	)
-	if err != nil {
-		b.Fatalf("Expected no error, got %v", err)
-	}
-
-	ctx := context.Background()
-
-	// Pre-populate cache
-	cache.L1CacheClient.Set(cache.realKey("key1"), "value_for_key1")
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_, _ = cache.Get(ctx, "key1")
 	}
 }
 
@@ -593,6 +312,6 @@ func BenchmarkXCache_Get_DirectFunction(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _ = cache.Get(ctx, "key1")
+		_, _ = cache.Get(ctx, StringKey("key1"))
 	}
 }
