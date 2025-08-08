@@ -202,7 +202,8 @@ func (xc *XCache[V]) Get(ctx context.Context, key Key) (V, error) {
 	return xc.getFromL3WithSingleFlight(ctx, key)
 }
 
-func (xc *XCache[V]) Put(ctx context.Context, key Key, v V) error {
+// noPut 关闭 noPut 功能，只会cache的时候设置，同理
+func (xc *XCache[V]) noPut(ctx context.Context, key Key, v V) error {
 	return xc.put(ctx, xc.realKey(key), v)
 }
 
