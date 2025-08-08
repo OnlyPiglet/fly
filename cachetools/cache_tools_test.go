@@ -3,6 +3,7 @@ package cachetools
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -58,6 +59,21 @@ func TestXCache_BasicFunctionality(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create cache: %v", err)
 	}
+
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				fmt.Printf("命中数: %d\n", cache.L1CacheClient.Stats().Hits())
+				fmt.Printf("未命中数: %d\n", cache.L1CacheClient.Stats().Misses())
+				fmt.Printf("命中率: %.2f%%\n", cache.L1CacheClient.Stats().Ratio()*100)
+				fmt.Printf("被拒绝的设置操作: %d\n", cache.L1CacheClient.Stats().RejectedSets())
+				fmt.Printf("被驱逐的条目数: %d\n", cache.L1CacheClient.Stats().EvictedCount())
+			}
+		}
+	}()
 
 	ctx := context.Background()
 	key := StringKey("test-user")
