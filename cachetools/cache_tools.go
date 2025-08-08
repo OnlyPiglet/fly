@@ -153,6 +153,7 @@ func NewCacheBuilder[V any](optFuncs ...CacheOptionFunc[V]) (*XCache[V], error) 
 
 	if opt.L1Enable {
 		cache, err := otter.MustBuilder[string, V](opt.Capacity).
+			CollectStats().
 			WithTTL(opt.L1CacheTTL).
 			Build()
 		if err != nil {
