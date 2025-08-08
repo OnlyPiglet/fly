@@ -129,7 +129,7 @@ func NewCacheBuilder[V any](optFuncs ...CacheOptionFunc[V]) (*XCache[V], error) 
 		optFunc(opt)
 	}
 
-	if opt.L2CacheTTL != 0 && opt.L2CacheTTL < opt.L1CacheTTL {
+	if opt.L2Enable && opt.L1Enable && opt.L2CacheTTL != 0 && opt.L2CacheTTL < opt.L1CacheTTL {
 		return nil, fmt.Errorf("l2 cache ttl shoud bigger than l1 cache ttl")
 	}
 
