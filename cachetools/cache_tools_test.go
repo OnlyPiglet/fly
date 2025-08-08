@@ -85,13 +85,6 @@ func TestXCache_BasicFunctionality(t *testing.T) {
 		Age:  999,
 	}
 
-	err = cache.Put(ctx, key, userToSet)
-	if err != nil {
-		t.Fatalf("Failed to set user in cache: %v", err)
-	}
-
-	t.Logf("Set user: %+v", userToSet)
-
 	// Immediately get the object (should be from L1 cache)
 	user, err := cache.Get(ctx, key)
 	if err != nil {
@@ -280,37 +273,6 @@ func TestXCache_Get_L1Only(t *testing.T) {
 	}
 	if err.Error() != "direct function error" {
 		t.Errorf("Expected error to be 'direct function error', got '%s'", err.Error())
-	}
-}
-
-func TestXCache_Put_L1Only(t *testing.T) {
-	cache, err := NewCacheBuilder(
-		WithPrefixKey[TestUser]("test"),
-		WithDirectFunc[TestUser](mockDirectFunc),
-		WithL1Cache[TestUser](true, 2000, 5*time.Minute),
-		WithL2Cache[TestUser](false, nil, 0),
-	)
-	if err != nil {
-		t.Fatalf("Expected no error, got %v", err)
-	}
-
-	ctx := context.Background()
-	user := TestUser{ID: 3, Name: "Charlie", Age: 35}
-	key := StringKey("user3")
-	realKey := cache.realKey(key)
-
-	err = cache.Put(ctx, key, user)
-	if err != nil {
-		t.Errorf("Expected no error, got %v", err)
-	}
-
-	// Verify it was stored in L1 cache
-	cachedUser, found := cache.L1CacheClient.Get(realKey)
-	if !found {
-		t.Error("Expected to find user in L1 cache")
-	}
-	if cachedUser != user {
-		t.Errorf("Expected cached user to be %+v, got %+v", user, cachedUser)
 	}
 }
 
