@@ -54,7 +54,7 @@ type XCache[V any] struct {
 	L3FlightErrContinue bool
 }
 
-func (xc *XCache[V]) realKey(k Key) string {
+func (xc *XCache[V]) cacheKey(k Key) string {
 	return fmt.Sprintf("%s:%s", xc.CachePrefixKey, k.ToString())
 }
 
@@ -172,17 +172,17 @@ func NewCacheBuilder[V any](optFuncs ...CacheOptionFunc[V]) (*XCache[V], error) 
 }
 
 func (xc *XCache[V]) Get(ctx context.Context, key Key) (V, error) {
-	realKey := xc.realKey(key)
+	cacheKey := xc.cacheKey(key)
 
 	if xc.L1Enable {
-		if v, ok := xc.L1CacheClient.Get(realKey); ok {
+		if v, ok := xc.L1CacheClient.Get(cacheKey); ok {
 			slog.Debug(fmt.Sprintf("get key %s from l1 cache", key))
 			return v, nil
 		}
 	}
 
 	if xc.L2Enable {
-		if vs, e := xc.L2RedisClient.Get(ctx, realKey).Result(); e == nil {
+		if vs, e := xc.L2RedisClient.Get(ctx, cacheKey).Result(); e == nil {
 			v := new(V)
 			em := json.Unmarshal([]byte(vs), v)
 			if em != nil {
@@ -191,7 +191,7 @@ func (xc *XCache[V]) Get(ctx context.Context, key Key) (V, error) {
 				slog.Debug(fmt.Sprintf("get key %s from l2 cache", key))
 				if xc.L1Enable {
 					go func() {
-						xc.L1CacheClient.Set(realKey, *v)
+						xc.L1CacheClient.Set(cacheKey, *v)
 					}()
 				}
 				return *v, nil
@@ -204,15 +204,15 @@ func (xc *XCache[V]) Get(ctx context.Context, key Key) (V, error) {
 
 // noPut 关闭 noPut 功能，只会cache的时候设置，同理
 func (xc *XCache[V]) noPut(ctx context.Context, key Key, v V) error {
-	return xc.put(ctx, xc.realKey(key), v)
+	return xc.put(ctx, xc.cacheKey(key), v)
 }
 
 func (xc *XCache[V]) getFromL3WithSingleFlight(ctx context.Context, key Key) (V, error) {
-	realKey := xc.realKey(key)
+	cacheKey := xc.cacheKey(key)
 
 	slog.Debug(fmt.Sprintf("get key %s from L3 directFunc", key))
 
-	v, err, shared := xc.flightGroup.Do(realKey, func() (interface{}, error) {
+	v, err, shared := xc.flightGroup.Do(key.ToString(), func() (interface{}, error) {
 		value, err := xc.L3DirectFunc(ctx, key)
 		if err != nil {
 			if xc.L3FlightErrContinue {
@@ -221,7 +221,7 @@ func (xc *XCache[V]) getFromL3WithSingleFlight(ctx context.Context, key Key) (V,
 			return value, err
 		}
 		go func() {
-			if err := xc.put(ctx, realKey, value); err != nil {
+			if err := xc.put(ctx, cacheKey, value); err != nil {
 				slog.Error("failed to cache L3 result", "key", key, "error", err)
 			}
 		}()
