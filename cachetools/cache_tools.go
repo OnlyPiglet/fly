@@ -130,15 +130,15 @@ func NewCacheBuilder[V any](optFuncs ...CacheOptionFunc[V]) (*XCache[V], error) 
 	}
 
 	if opt.L2Enable && opt.L1Enable && opt.L2CacheTTL != 0 && opt.L2CacheTTL < opt.L1CacheTTL {
-		return nil, fmt.Errorf("l2 cache ttl shoud bigger than l1 cache ttl")
+		return nil, fmt.Errorf("error: l2 cache ttl should be bigger than l1 cache ttl")
 	}
 
 	// Validate required options
 	if opt.PrefixKey == "" {
-		return nil, fmt.Errorf("prefix key is required")
+		return nil, fmt.Errorf("error: prefix key is required")
 	}
 	if opt.DirectFunc == nil {
-		return nil, fmt.Errorf("direct function is required")
+		return nil, fmt.Errorf("error: direct function is required")
 	}
 
 	cb := new(XCache[V])
@@ -163,7 +163,7 @@ func NewCacheBuilder[V any](optFuncs ...CacheOptionFunc[V]) (*XCache[V], error) 
 	}
 	if opt.L2Enable {
 		if opt.L2Config == nil {
-			return nil, fmt.Errorf("l2 cache is enabled but Redis config is not provided")
+			return nil, fmt.Errorf("error: l2 cache is enabled but Redis config is not provided")
 		}
 		cb.L2RedisClient = redis.NewClient(opt.L2Config)
 	}
@@ -186,7 +186,7 @@ func (xc *XCache[V]) Get(ctx context.Context, key Key) (V, error) {
 			v := new(V)
 			em := json.Unmarshal([]byte(vs), v)
 			if em != nil {
-				slog.Error("l2 cache get Unmarshal err", "error", em.Error())
+				slog.Error("cache error", "operation", "l2_unmarshal", "error", em.Error())
 			} else {
 				slog.Debug(fmt.Sprintf("get key %s from l2 cache", key))
 				if xc.L1Enable {
@@ -200,11 +200,6 @@ func (xc *XCache[V]) Get(ctx context.Context, key Key) (V, error) {
 	}
 
 	return xc.getFromL3WithSingleFlight(ctx, key)
-}
-
-// noPut 关闭 noPut 功能，只会cache的时候设置，同理
-func (xc *XCache[V]) noPut(ctx context.Context, key Key, v V) error {
-	return xc.put(ctx, xc.cacheKey(key), v)
 }
 
 func (xc *XCache[V]) getFromL3WithSingleFlight(ctx context.Context, key Key) (V, error) {
@@ -222,7 +217,7 @@ func (xc *XCache[V]) getFromL3WithSingleFlight(ctx context.Context, key Key) (V,
 		}
 		go func() {
 			if err := xc.put(ctx, cacheKey, value); err != nil {
-				slog.Error("failed to cache L3 result", "key", key, "error", err)
+				slog.Error("cache error", "operation", "l3_result_caching", "key", key, "error", err)
 			}
 		}()
 		return value, nil
@@ -245,8 +240,8 @@ func (xc *XCache[V]) put(ctx context.Context, key string, v V) error {
 	// Write to L1 cache
 	if xc.L1Enable {
 		if ok := xc.L1CacheClient.Set(key, v); !ok {
-			l1Err = fmt.Errorf("l1 memory cache set failed, cost too much")
-			slog.Error("l1 cache set failed", "key", key, "error", l1Err)
+			l1Err = fmt.Errorf("error: l1 memory cache set failed, cost too much")
+			slog.Error("cache error", "operation", "l1_set", "key", key, "error", l1Err)
 		}
 	}
 
@@ -254,22 +249,22 @@ func (xc *XCache[V]) put(ctx context.Context, key string, v V) error {
 	// Write to L2 cache
 	if xc.L2Enable {
 		if vb, e := json.Marshal(v); e != nil {
-			l2Err = fmt.Errorf("l2 cache marshal failed: %w", e)
-			slog.Error("l2 cache marshal failed", "key", key, "error", l2Err)
+			l2Err = fmt.Errorf("error: l2 cache marshal failed: %w", e)
+			slog.Error("cache error", "operation", "l2_marshal", "key", key, "error", l2Err)
 		} else {
 			if err := xc.L2RedisClient.Set(ctx, key, string(vb), xc.L2CacheTTL).Err(); err != nil {
-				l2Err = fmt.Errorf("l2 cache set failed: %w", err)
-				slog.Error("l2 cache set failed", "key", key, "error", l2Err)
+				l2Err = fmt.Errorf("error: l2 cache set failed: %w", err)
+				slog.Error("cache error", "operation", "l2_set", "key", key, "error", l2Err)
 			}
 		}
 	}
 
 	if l1Err != nil {
-		return fmt.Errorf("l1 cache failed: %s", l1Err.Error())
+		return fmt.Errorf("error: l1 cache failed: %s", l1Err.Error())
 	}
 
 	if l2Err != nil {
-		return fmt.Errorf("l2 cache failed: %s", l2Err.Error())
+		return fmt.Errorf("error: l2 cache failed: %s", l2Err.Error())
 	}
 
 	return nil
