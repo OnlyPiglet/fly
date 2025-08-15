@@ -21,6 +21,7 @@ import (
 
 type Key interface {
 	ToString() string
+	comparable
 }
 
 type StringKey string
@@ -39,9 +40,10 @@ type XCache[K Key, V any] struct {
 	CachePrefixKey string
 	// L1Enable 内存缓存是否开启
 	// L1Enable whether memory cache is enabled
-	L1Enable      bool
-	L1CacheTTL    time.Duration
-	L1CacheClient otter.Cache[string, V]
+	L1Enable       bool
+	L1CacheTTL     time.Duration
+	L1CacheClient  otter.Cache[K, V]
+	L1ExpireReload bool
 	// L2Enable Redis是否进行二级缓存
 	// L2Enable whether Redis L2 cache is enabled
 	L2Enable      bool
@@ -54,7 +56,7 @@ type XCache[K Key, V any] struct {
 	L3FlightErrContinue bool
 }
 
-func (xc *XCache[K, V]) cacheKey(k Key) string {
+func (xc *XCache[K, V]) redisCacheKey(k K) string {
 	return fmt.Sprintf("%s:%s", xc.CachePrefixKey, k.ToString())
 }
 
@@ -63,6 +65,7 @@ type CacheOption struct {
 	Capacity            int
 	L1Enable            bool
 	L1CacheTTL          time.Duration
+	L1ExpireReload      bool
 	L2Enable            bool
 	L2Config            *redis.Options
 	L2CacheTTL          time.Duration
@@ -86,6 +89,13 @@ func WithL1Cache(enable bool, capacity int, ttl time.Duration) CacheOptionFunc {
 		opt.L1Enable = enable
 		opt.L1CacheTTL = ttl
 		opt.Capacity = capacity
+	}
+}
+
+// WithL1ExpireReload L1失效后自动调用 l3direct 进行装载
+func WithL1ExpireReload(enable bool) CacheOptionFunc {
+	return func(opt *CacheOption) {
+		opt.L1ExpireReload = enable
 	}
 }
 
@@ -114,6 +124,7 @@ func NewCacheBuilder[K Key, V any](directFunc DirectFunc[K, V], optFuncs ...Cach
 		L2Enable:            false,
 		L2CacheTTL:          10 * time.Minute,
 		L3FlightErrContinue: false,
+		L1ExpireReload:      false,
 	}
 
 	// Apply all option functions
@@ -142,11 +153,20 @@ func NewCacheBuilder[K Key, V any](directFunc DirectFunc[K, V], optFuncs ...Cach
 	cb.L3DirectFunc = directFunc
 	cb.flightGroup = &singleflight.Group{}
 	cb.L3FlightErrContinue = opt.L3FlightErrContinue
+	cb.L1ExpireReload = opt.L1ExpireReload
 
 	if opt.L1Enable {
-		cache, err := otter.MustBuilder[string, V](opt.Capacity).
+		cache, err := otter.MustBuilder[K, V](opt.Capacity).
 			CollectStats().
 			WithTTL(opt.L1CacheTTL).
+			DeletionListener(func(key K, value V, cause otter.DeletionCause) {
+				switch cause {
+				case otter.Expired:
+					if cb.L1ExpireReload {
+						cb.Get(context.Background(), key)
+					}
+				}
+			}).
 			Build()
 		if err != nil {
 			return nil, err
@@ -164,17 +184,15 @@ func NewCacheBuilder[K Key, V any](directFunc DirectFunc[K, V], optFuncs ...Cach
 }
 
 func (xc *XCache[K, V]) Get(ctx context.Context, key K) (V, error) {
-	cacheKey := xc.cacheKey(key)
-
 	if xc.L1Enable {
-		if v, ok := xc.L1CacheClient.Get(cacheKey); ok {
+		if v, ok := xc.L1CacheClient.Get(key); ok {
 			slog.Debug(fmt.Sprintf("get key %s from l1 cache", key))
 			return v, nil
 		}
 	}
 
 	if xc.L2Enable {
-		if vs, e := xc.L2RedisClient.Get(ctx, cacheKey).Result(); e == nil {
+		if vs, e := xc.L2RedisClient.Get(ctx, xc.redisCacheKey(key)).Result(); e == nil {
 			v := new(V)
 			em := json.Unmarshal([]byte(vs), v)
 			if em != nil {
@@ -183,7 +201,7 @@ func (xc *XCache[K, V]) Get(ctx context.Context, key K) (V, error) {
 				slog.Debug(fmt.Sprintf("get key %s from l2 cache", key))
 				if xc.L1Enable {
 					go func() {
-						xc.L1CacheClient.Set(cacheKey, *v)
+						xc.L1CacheClient.Set(key, *v)
 					}()
 				}
 				return *v, nil
@@ -195,7 +213,6 @@ func (xc *XCache[K, V]) Get(ctx context.Context, key K) (V, error) {
 }
 
 func (xc *XCache[K, V]) getFromL3WithSingleFlight(ctx context.Context, key K) (V, error) {
-	cacheKey := xc.cacheKey(key)
 
 	slog.Debug(fmt.Sprintf("get key %s from L3 directFunc", key))
 
@@ -208,7 +225,7 @@ func (xc *XCache[K, V]) getFromL3WithSingleFlight(ctx context.Context, key K) (V
 			return value, err
 		}
 		go func() {
-			if err := xc.put(ctx, cacheKey, value); err != nil {
+			if err := xc.put(ctx, key, value); err != nil {
 				slog.Error("cache error", "operation", "l3_result_caching", "key", key, "error", err)
 			}
 		}()
@@ -220,7 +237,7 @@ func (xc *XCache[K, V]) getFromL3WithSingleFlight(ctx context.Context, key K) (V
 	return v.(V), err
 }
 
-func (xc *XCache[K, V]) put(ctx context.Context, key string, v V) error {
+func (xc *XCache[K, V]) put(ctx context.Context, key K, v V) error {
 
 	if !xc.L1Enable && !xc.L2Enable {
 		return nil
@@ -244,7 +261,7 @@ func (xc *XCache[K, V]) put(ctx context.Context, key string, v V) error {
 			l2Err = fmt.Errorf("error: l2 cache marshal failed: %w", e)
 			slog.Error("cache error", "operation", "l2_marshal", "key", key, "error", l2Err)
 		} else {
-			if err := xc.L2RedisClient.Set(ctx, key, string(vb), xc.L2CacheTTL).Err(); err != nil {
+			if err := xc.L2RedisClient.Set(ctx, xc.redisCacheKey(key), string(vb), xc.L2CacheTTL).Err(); err != nil {
 				l2Err = fmt.Errorf("error: l2 cache set failed: %w", err)
 				slog.Error("cache error", "operation", "l2_set", "key", key, "error", l2Err)
 			}
