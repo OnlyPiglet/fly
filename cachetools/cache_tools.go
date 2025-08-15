@@ -29,13 +29,13 @@ func (k StringKey) ToString() string {
 	return string(k)
 }
 
-type DirectFunc[V any] func(ctx context.Context, k Key) (V, error)
+type DirectFunc[K Key, V any] func(ctx context.Context, k K) (V, error)
 
 type LocalL2Client interface{}
 
 type L1RedisClient interface{}
 
-type XCache[V any] struct {
+type XCache[K Key, V any] struct {
 	CachePrefixKey string
 	// L1Enable 内存缓存是否开启
 	// L1Enable whether memory cache is enabled
@@ -49,16 +49,16 @@ type XCache[V any] struct {
 	L2RedisClient *redis.Client
 	// 用于防止缓存击穿的单飞模式
 	// Singleflight pattern to prevent cache stampede
-	L3DirectFunc        DirectFunc[V]
+	L3DirectFunc        DirectFunc[K, V]
 	flightGroup         *singleflight.Group
 	L3FlightErrContinue bool
 }
 
-func (xc *XCache[V]) cacheKey(k Key) string {
+func (xc *XCache[K, V]) cacheKey(k Key) string {
 	return fmt.Sprintf("%s:%s", xc.CachePrefixKey, k.ToString())
 }
 
-type CacheOption[V any] struct {
+type CacheOption struct {
 	PrefixKey           string
 	Capacity            int
 	L1Enable            bool
@@ -66,24 +66,23 @@ type CacheOption[V any] struct {
 	L2Enable            bool
 	L2Config            *redis.Options
 	L2CacheTTL          time.Duration
-	DirectFunc          DirectFunc[V]
 	L3FlightErrContinue bool
 }
 
 // CacheOptionFunc defines a function type for configuring CacheOption
-type CacheOptionFunc[V any] func(*CacheOption[V])
+type CacheOptionFunc func(*CacheOption)
 
 // WithPrefixKey sets the cache prefix key
-func WithPrefixKey[V any](prefixKey string) CacheOptionFunc[V] {
-	return func(opt *CacheOption[V]) {
+func WithPrefixKey(prefixKey string) CacheOptionFunc {
+	return func(opt *CacheOption) {
 		opt.PrefixKey = prefixKey
 	}
 }
 
 // WithL1Cache enables l1 cache with TTL with capacity,TTL为0时 永不过期
 // WithL1Cache enables L1 cache with TTL and capacity, TTL=0 means never expire
-func WithL1Cache[V any](enable bool, capacity int, ttl time.Duration) CacheOptionFunc[V] {
-	return func(opt *CacheOption[V]) {
+func WithL1Cache(enable bool, capacity int, ttl time.Duration) CacheOptionFunc {
+	return func(opt *CacheOption) {
 		opt.L1Enable = enable
 		opt.L1CacheTTL = ttl
 		opt.Capacity = capacity
@@ -92,30 +91,23 @@ func WithL1Cache[V any](enable bool, capacity int, ttl time.Duration) CacheOptio
 
 // WithL2Cache enables l2 cache with Redis config and TTL, 0 永不过期
 // WithL2Cache enables L2 cache with Redis config and TTL, TTL=0 means never expire
-func WithL2Cache[V any](enable bool, config *redis.Options, ttl time.Duration) CacheOptionFunc[V] {
-	return func(opt *CacheOption[V]) {
+func WithL2Cache(enable bool, config *redis.Options, ttl time.Duration) CacheOptionFunc {
+	return func(opt *CacheOption) {
 		opt.L2Enable = enable
 		opt.L2Config = config
 		opt.L2CacheTTL = ttl
 	}
 }
 
-// WithDirectFunc sets the direct function for L3 cache
-func WithDirectFunc[V any](directFunc DirectFunc[V]) CacheOptionFunc[V] {
-	return func(opt *CacheOption[V]) {
-		opt.DirectFunc = directFunc
-	}
-}
-
-func WithL3FlightErrContinue[V any](con bool) CacheOptionFunc[V] {
-	return func(opt *CacheOption[V]) {
+func WithL3FlightErrContinue(con bool) CacheOptionFunc {
+	return func(opt *CacheOption) {
 		opt.L3FlightErrContinue = con
 	}
 }
 
-func NewCacheBuilder[V any](optFuncs ...CacheOptionFunc[V]) (*XCache[V], error) {
+func NewCacheBuilder[K Key, V any](directFunc DirectFunc[K, V], optFuncs ...CacheOptionFunc) (*XCache[K, V], error) {
 	// Initialize default options
-	opt := &CacheOption[V]{
+	opt := &CacheOption{
 		Capacity:            1000, // default capacity
 		L1Enable:            true, // 默认启用L1缓存 (L1 cache enabled by default)
 		L1CacheTTL:          5 * time.Minute,
@@ -137,17 +129,17 @@ func NewCacheBuilder[V any](optFuncs ...CacheOptionFunc[V]) (*XCache[V], error) 
 	if opt.PrefixKey == "" {
 		return nil, fmt.Errorf("error: prefix key is required")
 	}
-	if opt.DirectFunc == nil {
+	if directFunc == nil {
 		return nil, fmt.Errorf("error: direct function is required")
 	}
 
-	cb := new(XCache[V])
+	cb := new(XCache[K, V])
 	cb.CachePrefixKey = opt.PrefixKey
 	cb.L1Enable = opt.L1Enable
 	cb.L1CacheTTL = opt.L1CacheTTL
 	cb.L2Enable = opt.L2Enable
 	cb.L2CacheTTL = opt.L2CacheTTL
-	cb.L3DirectFunc = opt.DirectFunc
+	cb.L3DirectFunc = directFunc
 	cb.flightGroup = &singleflight.Group{}
 	cb.L3FlightErrContinue = opt.L3FlightErrContinue
 
@@ -171,7 +163,7 @@ func NewCacheBuilder[V any](optFuncs ...CacheOptionFunc[V]) (*XCache[V], error) 
 	return cb, nil
 }
 
-func (xc *XCache[V]) Get(ctx context.Context, key Key) (V, error) {
+func (xc *XCache[K, V]) Get(ctx context.Context, key K) (V, error) {
 	cacheKey := xc.cacheKey(key)
 
 	if xc.L1Enable {
@@ -202,7 +194,7 @@ func (xc *XCache[V]) Get(ctx context.Context, key Key) (V, error) {
 	return xc.getFromL3WithSingleFlight(ctx, key)
 }
 
-func (xc *XCache[V]) getFromL3WithSingleFlight(ctx context.Context, key Key) (V, error) {
+func (xc *XCache[K, V]) getFromL3WithSingleFlight(ctx context.Context, key K) (V, error) {
 	cacheKey := xc.cacheKey(key)
 
 	slog.Debug(fmt.Sprintf("get key %s from L3 directFunc", key))
@@ -228,7 +220,7 @@ func (xc *XCache[V]) getFromL3WithSingleFlight(ctx context.Context, key Key) (V,
 	return v.(V), err
 }
 
-func (xc *XCache[V]) put(ctx context.Context, key string, v V) error {
+func (xc *XCache[K, V]) put(ctx context.Context, key string, v V) error {
 
 	if !xc.L1Enable && !xc.L2Enable {
 		return nil
