@@ -1,6 +1,7 @@
 package servertools
 
 import (
+	"errors"
 	"fmt"
 	"github.com/OnlyPiglet/fly/filetools"
 	"github.com/OnlyPiglet/fly/nettools"
@@ -177,4 +178,32 @@ func isListContainsStr(list []string, str string) bool {
 		}
 	}
 	return false
+}
+
+func GetIPv4ByInterfaceName(ifaceName string) (string, error) {
+	iface, err := rnet.InterfaceByName(ifaceName)
+	if err != nil {
+		return "", err
+	}
+
+	addrs, err := iface.Addrs()
+	if err != nil {
+		return "", err
+	}
+
+	for _, addr := range addrs {
+		var ip rnet.IP
+		switch v := addr.(type) {
+		case *rnet.IPNet:
+			ip = v.IP
+		case *rnet.IPAddr:
+			ip = v.IP
+		}
+
+		// 只返回非 loopback 的 IPv4 地址
+		if ip.To4() != nil && !ip.IsLoopback() {
+			return ip.String(), nil
+		}
+	}
+	return "", errors.New("no valid IPv4 address found on interface " + ifaceName)
 }
