@@ -11,6 +11,7 @@ import (
 	"github.com/shirou/gopsutil/v3/mem"
 	"github.com/shirou/gopsutil/v3/net"
 	"math"
+	rnet "net"
 	"runtime"
 	"strconv"
 	"strings"
