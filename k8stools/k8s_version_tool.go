@@ -1,4 +1,4 @@
-package k8stools
+package logtools
 
 import (
 	"fmt"
