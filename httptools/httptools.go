@@ -2,6 +2,7 @@ package httptools
 
 import (
 	"fmt"
+	"net/http"
 	"net/url"
 	"reflect"
 	"strconv"
@@ -70,4 +71,11 @@ func Struct2URLValues[T any](data T) (url.Values, error) {
 		values.Add(name, strValue)
 	}
 	return values, nil
+}
+
+var HttpHyperTransport = &http.Transport{
+	DisableKeepAlives:   true,
+	MaxConnsPerHost:     0,
+	MaxIdleConns:        3000,
+	MaxIdleConnsPerHost: 300,
 }
