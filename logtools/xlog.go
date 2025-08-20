@@ -172,9 +172,19 @@ func (kl *Log) Debug(msg string, args ...any) {
 	kl.logger.Debug(msg, args...)
 }
 
+// Debugf record log with level [DEBUG]
+func (kl *Log) Debugf(format string, a ...any) {
+	kl.logger.Debug(fmt.Sprintf(format, a...))
+}
+
 // Info record log with level [INFO]
 func (kl *Log) Info(msg string, args ...any) {
 	kl.logger.Info(msg, args...)
+}
+
+// Infof record log with level [INFO]
+func (kl *Log) Infof(format string, a ...any) {
+	kl.logger.Info(fmt.Sprintf(format, a...))
 }
 
 // Warn record log with level [WARN]
@@ -182,9 +192,19 @@ func (kl *Log) Warn(msg string, args ...any) {
 	kl.logger.Warn(msg, args...)
 }
 
+// Warnf record log with level [Warn]
+func (kl *Log) Warnf(format string, a ...any) {
+	kl.logger.Warn(fmt.Sprintf(format, a...))
+}
+
 // Error record log with level [ERROR]
 func (kl *Log) Error(msg string, args ...any) {
 	kl.logger.Error(msg, args...)
+}
+
+// Errorf record log with level [Error]
+func (kl *Log) Errorf(format string, a ...any) {
+	kl.logger.Error(fmt.Sprintf(format, a...))
 }
 
 // AddAttrs add key/value attr pairs on KeLog.logger
