@@ -9,7 +9,8 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
-	"time"
+
+	"github.com/natefinch/lumberjack"
 )
 
 const (
@@ -38,18 +39,8 @@ func WithLevel(level int) Option {
 	}
 }
 
-// WithFileLogAutoFlushInterval set file log auto flush interval,if 0 will close auto flush
-func WithFileLogAutoFlushInterval(interval time.Duration) Option {
-	return func(kc *LogConfig) {
-		if kc.LogFileConfig == nil {
-			kc.LogFileConfig = &LogFileConfig{}
-		}
-		kc.LogFileConfig.FileLogAutoFlushInterval = interval
-	}
-}
-
-// WithLogFileName set log file full path, if not set or empty,will not generate file type log
-func WithLogFileName(filename string) Option {
+// WithFileName set log file full path, if not set or empty,will not generate file type log
+func WithFileName(filename string) Option {
 	return func(kc *LogConfig) {
 		if kc.LogFileConfig == nil {
 			kc.LogFileConfig = &LogFileConfig{}
@@ -58,17 +49,24 @@ func WithLogFileName(filename string) Option {
 	}
 }
 
-// WithLogFileNameMaxSize set single log file max size
-func WithLogFileNameMaxSize(maxSize int64) Option {
+// WithMaxMegaSize set single log file max mb size
+func WithMaxMegaSize(maxMegaByte int) Option {
 	return func(kc *LogConfig) {
-		kc.LogFileConfig.MaxSize = maxSize
+		kc.LogFileConfig.MaxMegaByte = maxMegaByte
 	}
 }
 
-// WithLogFileNameMaxKept set max keep log file count
-func WithLogFileNameMaxKept(maxKept int64) Option {
+// WithMaxKept set max keep log file count
+func WithMaxKept(maxKept int) Option {
 	return func(kc *LogConfig) {
 		kc.LogFileConfig.MaxKept = maxKept
+	}
+}
+
+// WithAgeKept set max keep log file count
+func WithAgeKept(maxAge int) Option {
+	return func(kc *LogConfig) {
+		kc.LogFileConfig.MaxAge = maxAge
 	}
 }
 
@@ -88,8 +86,8 @@ func WithLogFormat(logFormat int) Option {
 
 type Option func(c *LogConfig)
 
-// NewKeLog create KeLog with Option,may has race create,but don't be care
-func NewKeLog(opts ...Option) *Log {
+// NewXLog create NewXLog with Option,may has race create,but don't be care
+func NewXLog(opts ...Option) *Log {
 
 	if Logger != nil {
 		return Logger
@@ -113,22 +111,17 @@ func NewKeLog(opts ...Option) *Log {
 	}
 
 	if Logger.logConfig.LogFileConfig.LogFileName != "" {
-		writer := NewFileWriter(Logger.logConfig.LogFileConfig.LogFileName, NewFileRotator(Logger.logConfig.LogFileConfig.MaxSize, Logger.logConfig.LogFileConfig.MaxKept))
-		Logger.writerCloser = append(Logger.writerCloser, writer)
-		Logger.logConfig.Writers = append(Logger.logConfig.Writers, writer)
 
-		// start auto flush of file logger
-		if Logger.logConfig.LogFileConfig.FileLogAutoFlushInterval != 0 {
-			go func() {
-				timer := time.NewTicker(Logger.logConfig.LogFileConfig.FileLogAutoFlushInterval)
-				fileWriter, ok := writer.(*FileWriter)
-				if ok {
-					for range timer.C {
-						fileWriter.flush()
-					}
-				}
-			}()
+		jackLogger := &lumberjack.Logger{
+			Filename:   Logger.logConfig.LogFileConfig.LogFileName,
+			MaxSize:    Logger.logConfig.LogFileConfig.MaxMegaByte, // megabytes
+			MaxBackups: Logger.logConfig.LogFileConfig.MaxKept,
+			MaxAge:     Logger.logConfig.LogFileConfig.MaxAge, //days
+			Compress:   true,                                  // disabled by default
 		}
+
+		Logger.writerCloser = append(Logger.writerCloser, jackLogger)
+		Logger.logConfig.Writers = append(Logger.logConfig.Writers, jackLogger)
 
 	}
 
@@ -203,10 +196,10 @@ var defaultKeLogConfig = LogConfig{
 	Level:   ERROR,
 	Writers: []io.Writer{os.Stdout},
 	LogFileConfig: &LogFileConfig{
-		LogFileName:              "",
-		MaxKept:                  7,
-		MaxSize:                  DefaultFileRotator.MaxSize(),
-		FileLogAutoFlushInterval: 1 * time.Second,
+		LogFileName: "",
+		MaxKept:     7,
+		MaxMegaByte: 100,
+		MaxAge:      28,
 	},
 	LogFormat: JsonFormat,
 }
@@ -228,10 +221,10 @@ type LogConfig struct {
 }
 
 type LogFileConfig struct {
-	LogFileName              string
-	MaxKept                  int64
-	MaxSize                  int64
-	FileLogAutoFlushInterval time.Duration
+	LogFileName string
+	MaxKept     int
+	MaxMegaByte int
+	MaxAge      int
 }
 
 func switchLevel(level int) slog.Level {
