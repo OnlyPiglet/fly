@@ -55,3 +55,13 @@ func (sm *SafeMap[k, v]) GetKeys() []k {
 	}
 	return ks
 }
+
+func (sm *SafeMap[k, v]) GetValues() []v {
+	sm.l.RLock()
+	defer sm.l.RUnlock()
+	vs := make([]v, 0)
+	for _, tv := range sm.c {
+		vs = append(vs, tv)
+	}
+	return vs
+}
