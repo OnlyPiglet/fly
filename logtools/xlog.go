@@ -49,6 +49,13 @@ func WithFileName(filename string) Option {
 	}
 }
 
+// WithFields 带上可以复用的上下文字段，key 为 string,value 是 基本类型如 int64,float64,string
+func WithFields(fields []map[string]interface{}) Option {
+	return func(kc *LogConfig) {
+		kc.Fields = fields
+	}
+}
+
 // WithMaxMegaSize set single log file max mb size
 func WithMaxMegaSize(maxMegaByte int) Option {
 	return func(kc *LogConfig) {
@@ -125,10 +132,13 @@ func NewXLog(opts ...Option) *Log {
 
 	}
 
+	// 将 Fields 转换为 slog.With() 需要的参数格式
+	withArgs := convertFieldsToArgs(Logger.logConfig.Fields)
+
 	if Logger.logConfig.LogFormat == JsonFormat {
-		Logger.logger = slog.New(slog.NewJSONHandler(io.MultiWriter(Logger.logConfig.Writers...), &slog.HandlerOptions{Level: switchLevel(Logger.logConfig.Level)}))
+		Logger.logger = slog.New(slog.NewJSONHandler(io.MultiWriter(Logger.logConfig.Writers...), &slog.HandlerOptions{Level: switchLevel(Logger.logConfig.Level)})).With(withArgs...)
 	} else {
-		Logger.logger = slog.New(slog.NewTextHandler(io.MultiWriter(Logger.logConfig.Writers...), &slog.HandlerOptions{Level: switchLevel(Logger.logConfig.Level)}))
+		Logger.logger = slog.New(slog.NewTextHandler(io.MultiWriter(Logger.logConfig.Writers...), &slog.HandlerOptions{Level: switchLevel(Logger.logConfig.Level)})).With(withArgs...)
 	}
 	return Logger
 }
@@ -238,6 +248,7 @@ type LogConfig struct {
 	Writers       []io.Writer
 	LogFileConfig *LogFileConfig
 	LogFormat     int
+	Fields        []map[string]interface{}
 }
 
 type LogFileConfig struct {
@@ -245,6 +256,17 @@ type LogFileConfig struct {
 	MaxKept     int
 	MaxMegaByte int
 	MaxAge      int
+}
+
+// convertFieldsToArgs 将 Fields 转换为 slog.With() 需要的参数格式
+func convertFieldsToArgs(fields []map[string]interface{}) []any {
+	var args []any
+	for _, fieldMap := range fields {
+		for key, value := range fieldMap {
+			args = append(args, key, value)
+		}
+	}
+	return args
 }
 
 func switchLevel(level int) slog.Level {
