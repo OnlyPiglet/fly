@@ -1,0 +1,207 @@
+{"time":"2025-09-02T11:32:28.98374+08:00","level":"INFO","msg":"greeting","traceId":"0","name":"tony"}
+{"time":"2025-09-02T11:32:28.983835+08:00","level":"INFO","msg":"greeting","traceId":"77","name":"tony"}
+{"time":"2025-09-02T11:32:28.984272+08:00","level":"ERROR","msg":"oops","traceId":"77","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.983834+08:00","level":"INFO","msg":"greeting","traceId":"41","name":"tony"}
+{"time":"2025-09-02T11:32:28.983889+08:00","level":"INFO","msg":"greeting","traceId":"1","name":"tony"}
+{"time":"2025-09-02T11:32:28.983902+08:00","level":"INFO","msg":"greeting","traceId":"84","name":"tony"}
+{"time":"2025-09-02T11:32:28.984339+08:00","level":"ERROR","msg":"oops","traceId":"84","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.983911+08:00","level":"INFO","msg":"greeting","traceId":"86","name":"tony"}
+{"time":"2025-09-02T11:32:28.984371+08:00","level":"ERROR","msg":"oops","traceId":"86","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.983864+08:00","level":"INFO","msg":"greeting","traceId":"79","name":"tony"}
+{"time":"2025-09-02T11:32:28.98393+08:00","level":"INFO","msg":"greeting","traceId":"5","name":"tony"}
+{"time":"2025-09-02T11:32:28.983936+08:00","level":"INFO","msg":"greeting","traceId":"31","name":"tony"}
+{"time":"2025-09-02T11:32:28.984452+08:00","level":"ERROR","msg":"oops","traceId":"31","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.983914+08:00","level":"INFO","msg":"greeting","traceId":"87","name":"tony"}
+{"time":"2025-09-02T11:32:28.984464+08:00","level":"ERROR","msg":"oops","traceId":"87","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.984426+08:00","level":"ERROR","msg":"oops","traceId":"5","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.983933+08:00","level":"INFO","msg":"greeting","traceId":"61","name":"tony"}
+{"time":"2025-09-02T11:32:28.984482+08:00","level":"ERROR","msg":"oops","traceId":"61","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.98432+08:00","level":"ERROR","msg":"oops","traceId":"1","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.984297+08:00","level":"ERROR","msg":"oops","traceId":"41","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.983941+08:00","level":"INFO","msg":"greeting","traceId":"62","name":"tony"}
+{"time":"2025-09-02T11:32:28.984518+08:00","level":"ERROR","msg":"oops","traceId":"62","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.983939+08:00","level":"INFO","msg":"greeting","traceId":"91","name":"tony"}
+{"time":"2025-09-02T11:32:28.984533+08:00","level":"ERROR","msg":"oops","traceId":"91","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.983942+08:00","level":"INFO","msg":"greeting","traceId":"32","name":"tony"}
+{"time":"2025-09-02T11:32:28.984553+08:00","level":"ERROR","msg":"oops","traceId":"32","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.984039+08:00","level":"INFO","msg":"greeting","traceId":"92","name":"tony"}
+{"time":"2025-09-02T11:32:28.984567+08:00","level":"ERROR","msg":"oops","traceId":"92","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.984037+08:00","level":"INFO","msg":"greeting","traceId":"63","name":"tony"}
+{"time":"2025-09-02T11:32:28.984591+08:00","level":"ERROR","msg":"oops","traceId":"63","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.984047+08:00","level":"INFO","msg":"greeting","traceId":"64","name":"tony"}
+{"time":"2025-09-02T11:32:28.984614+08:00","level":"ERROR","msg":"oops","traceId":"64","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.984025+08:00","level":"INFO","msg":"greeting","traceId":"9","name":"tony"}
+{"time":"2025-09-02T11:32:28.984634+08:00","level":"ERROR","msg":"oops","traceId":"9","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.98404+08:00","level":"INFO","msg":"greeting","traceId":"33","name":"tony"}
+{"time":"2025-09-02T11:32:28.984657+08:00","level":"ERROR","msg":"oops","traceId":"33","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.984052+08:00","level":"INFO","msg":"greeting","traceId":"65","name":"tony"}
+{"time":"2025-09-02T11:32:28.984668+08:00","level":"ERROR","msg":"oops","traceId":"65","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.984061+08:00","level":"INFO","msg":"greeting","traceId":"10","name":"tony"}
+{"time":"2025-09-02T11:32:28.984681+08:00","level":"ERROR","msg":"oops","traceId":"10","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.984064+08:00","level":"INFO","msg":"greeting","traceId":"34","name":"tony"}
+{"time":"2025-09-02T11:32:28.98469+08:00","level":"ERROR","msg":"oops","traceId":"34","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.984066+08:00","level":"INFO","msg":"greeting","traceId":"66","name":"tony"}
+{"time":"2025-09-02T11:32:28.984722+08:00","level":"ERROR","msg":"oops","traceId":"66","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.984061+08:00","level":"INFO","msg":"greeting","traceId":"58","name":"tony"}
+{"time":"2025-09-02T11:32:28.984735+08:00","level":"ERROR","msg":"oops","traceId":"58","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.984045+08:00","level":"INFO","msg":"greeting","traceId":"93","name":"tony"}
+{"time":"2025-09-02T11:32:28.984744+08:00","level":"ERROR","msg":"oops","traceId":"93","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.984076+08:00","level":"INFO","msg":"greeting","traceId":"52","name":"tony"}
+{"time":"2025-09-02T11:32:28.984762+08:00","level":"ERROR","msg":"oops","traceId":"52","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.984081+08:00","level":"INFO","msg":"greeting","traceId":"94","name":"tony"}
+{"time":"2025-09-02T11:32:28.984777+08:00","level":"ERROR","msg":"oops","traceId":"94","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.984082+08:00","level":"INFO","msg":"greeting","traceId":"53","name":"tony"}
+{"time":"2025-09-02T11:32:28.984792+08:00","level":"ERROR","msg":"oops","traceId":"53","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.98407+08:00","level":"INFO","msg":"greeting","traceId":"11","name":"tony"}
+{"time":"2025-09-02T11:32:28.9848+08:00","level":"ERROR","msg":"oops","traceId":"11","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.984087+08:00","level":"INFO","msg":"greeting","traceId":"95","name":"tony"}
+{"time":"2025-09-02T11:32:28.984825+08:00","level":"ERROR","msg":"oops","traceId":"95","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.984092+08:00","level":"INFO","msg":"greeting","traceId":"54","name":"tony"}
+{"time":"2025-09-02T11:32:28.984839+08:00","level":"ERROR","msg":"oops","traceId":"54","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.984094+08:00","level":"INFO","msg":"greeting","traceId":"96","name":"tony"}
+{"time":"2025-09-02T11:32:28.984852+08:00","level":"ERROR","msg":"oops","traceId":"96","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.984071+08:00","level":"INFO","msg":"greeting","traceId":"35","name":"tony"}
+{"time":"2025-09-02T11:32:28.98486+08:00","level":"ERROR","msg":"oops","traceId":"35","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.9841+08:00","level":"INFO","msg":"greeting","traceId":"12","name":"tony"}
+{"time":"2025-09-02T11:32:28.98487+08:00","level":"ERROR","msg":"oops","traceId":"12","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.9841+08:00","level":"INFO","msg":"greeting","traceId":"97","name":"tony"}
+{"time":"2025-09-02T11:32:28.984894+08:00","level":"ERROR","msg":"oops","traceId":"97","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.9841+08:00","level":"INFO","msg":"greeting","traceId":"55","name":"tony"}
+{"time":"2025-09-02T11:32:28.984908+08:00","level":"ERROR","msg":"oops","traceId":"55","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.984109+08:00","level":"INFO","msg":"greeting","traceId":"98","name":"tony"}
+{"time":"2025-09-02T11:32:28.984918+08:00","level":"ERROR","msg":"oops","traceId":"98","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.984113+08:00","level":"INFO","msg":"greeting","traceId":"36","name":"tony"}
+{"time":"2025-09-02T11:32:28.984927+08:00","level":"ERROR","msg":"oops","traceId":"36","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.984115+08:00","level":"INFO","msg":"greeting","traceId":"56","name":"tony"}
+{"time":"2025-09-02T11:32:28.984935+08:00","level":"ERROR","msg":"oops","traceId":"56","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.984107+08:00","level":"INFO","msg":"greeting","traceId":"13","name":"tony"}
+{"time":"2025-09-02T11:32:28.984944+08:00","level":"ERROR","msg":"oops","traceId":"13","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.98412+08:00","level":"INFO","msg":"greeting","traceId":"37","name":"tony"}
+{"time":"2025-09-02T11:32:28.984954+08:00","level":"ERROR","msg":"oops","traceId":"37","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.984128+08:00","level":"INFO","msg":"greeting","traceId":"17","name":"tony"}
+{"time":"2025-09-02T11:32:28.984961+08:00","level":"ERROR","msg":"oops","traceId":"17","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.984131+08:00","level":"INFO","msg":"greeting","traceId":"38","name":"tony"}
+{"time":"2025-09-02T11:32:28.984968+08:00","level":"ERROR","msg":"oops","traceId":"38","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.984116+08:00","level":"INFO","msg":"greeting","traceId":"16","name":"tony"}
+{"time":"2025-09-02T11:32:28.984976+08:00","level":"ERROR","msg":"oops","traceId":"16","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.984139+08:00","level":"INFO","msg":"greeting","traceId":"15","name":"tony"}
+{"time":"2025-09-02T11:32:28.984993+08:00","level":"ERROR","msg":"oops","traceId":"15","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.984134+08:00","level":"INFO","msg":"greeting","traceId":"18","name":"tony"}
+{"time":"2025-09-02T11:32:28.985005+08:00","level":"ERROR","msg":"oops","traceId":"18","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.98413+08:00","level":"INFO","msg":"greeting","traceId":"51","name":"tony"}
+{"time":"2025-09-02T11:32:28.985019+08:00","level":"ERROR","msg":"oops","traceId":"51","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.984151+08:00","level":"INFO","msg":"greeting","traceId":"19","name":"tony"}
+{"time":"2025-09-02T11:32:28.985031+08:00","level":"ERROR","msg":"oops","traceId":"19","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.984146+08:00","level":"INFO","msg":"greeting","traceId":"68","name":"tony"}
+{"time":"2025-09-02T11:32:28.985049+08:00","level":"ERROR","msg":"oops","traceId":"68","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.984157+08:00","level":"INFO","msg":"greeting","traceId":"46","name":"tony"}
+{"time":"2025-09-02T11:32:28.985061+08:00","level":"ERROR","msg":"oops","traceId":"46","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.984137+08:00","level":"INFO","msg":"greeting","traceId":"39","name":"tony"}
+{"time":"2025-09-02T11:32:28.985073+08:00","level":"ERROR","msg":"oops","traceId":"39","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.984162+08:00","level":"INFO","msg":"greeting","traceId":"48","name":"tony"}
+{"time":"2025-09-02T11:32:28.98509+08:00","level":"ERROR","msg":"oops","traceId":"48","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.983753+08:00","level":"INFO","msg":"greeting","traceId":"99","name":"tony"}
+{"time":"2025-09-02T11:32:28.9851+08:00","level":"ERROR","msg":"oops","traceId":"99","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.984168+08:00","level":"INFO","msg":"greeting","traceId":"47","name":"tony"}
+{"time":"2025-09-02T11:32:28.985109+08:00","level":"ERROR","msg":"oops","traceId":"47","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.98417+08:00","level":"INFO","msg":"greeting","traceId":"40","name":"tony"}
+{"time":"2025-09-02T11:32:28.985121+08:00","level":"ERROR","msg":"oops","traceId":"40","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.983796+08:00","level":"INFO","msg":"greeting","traceId":"42","name":"tony"}
+{"time":"2025-09-02T11:32:28.985136+08:00","level":"ERROR","msg":"oops","traceId":"42","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.984177+08:00","level":"INFO","msg":"greeting","traceId":"50","name":"tony"}
+{"time":"2025-09-02T11:32:28.985146+08:00","level":"ERROR","msg":"oops","traceId":"50","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.984164+08:00","level":"INFO","msg":"greeting","traceId":"49","name":"tony"}
+{"time":"2025-09-02T11:32:28.985181+08:00","level":"ERROR","msg":"oops","traceId":"49","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.983801+08:00","level":"INFO","msg":"greeting","traceId":"43","name":"tony"}
+{"time":"2025-09-02T11:32:28.985194+08:00","level":"ERROR","msg":"oops","traceId":"43","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.984181+08:00","level":"INFO","msg":"greeting","traceId":"71","name":"tony"}
+{"time":"2025-09-02T11:32:28.985204+08:00","level":"ERROR","msg":"oops","traceId":"71","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.983805+08:00","level":"INFO","msg":"greeting","traceId":"44","name":"tony"}
+{"time":"2025-09-02T11:32:28.985213+08:00","level":"ERROR","msg":"oops","traceId":"44","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.984179+08:00","level":"INFO","msg":"greeting","traceId":"14","name":"tony"}
+{"time":"2025-09-02T11:32:28.985224+08:00","level":"ERROR","msg":"oops","traceId":"14","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.983816+08:00","level":"INFO","msg":"greeting","traceId":"45","name":"tony"}
+{"time":"2025-09-02T11:32:28.98523+08:00","level":"ERROR","msg":"oops","traceId":"45","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.98382+08:00","level":"INFO","msg":"greeting","traceId":"73","name":"tony"}
+{"time":"2025-09-02T11:32:28.985255+08:00","level":"ERROR","msg":"oops","traceId":"73","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.983823+08:00","level":"INFO","msg":"greeting","traceId":"74","name":"tony"}
+{"time":"2025-09-02T11:32:28.985268+08:00","level":"ERROR","msg":"oops","traceId":"74","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.983826+08:00","level":"INFO","msg":"greeting","traceId":"75","name":"tony"}
+{"time":"2025-09-02T11:32:28.985277+08:00","level":"ERROR","msg":"oops","traceId":"75","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.983832+08:00","level":"INFO","msg":"greeting","traceId":"76","name":"tony"}
+{"time":"2025-09-02T11:32:28.985297+08:00","level":"ERROR","msg":"oops","traceId":"76","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.984245+08:00","level":"ERROR","msg":"oops","traceId":"0","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.983942+08:00","level":"INFO","msg":"greeting","traceId":"8","name":"tony"}
+{"time":"2025-09-02T11:32:28.985327+08:00","level":"ERROR","msg":"oops","traceId":"8","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.983857+08:00","level":"INFO","msg":"greeting","traceId":"21","name":"tony"}
+{"time":"2025-09-02T11:32:28.98534+08:00","level":"ERROR","msg":"oops","traceId":"21","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.984164+08:00","level":"INFO","msg":"greeting","traceId":"69","name":"tony"}
+{"time":"2025-09-02T11:32:28.985353+08:00","level":"ERROR","msg":"oops","traceId":"69","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.983857+08:00","level":"INFO","msg":"greeting","traceId":"78","name":"tony"}
+{"time":"2025-09-02T11:32:28.985378+08:00","level":"ERROR","msg":"oops","traceId":"78","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.983861+08:00","level":"INFO","msg":"greeting","traceId":"22","name":"tony"}
+{"time":"2025-09-02T11:32:28.985399+08:00","level":"ERROR","msg":"oops","traceId":"22","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.984248+08:00","level":"INFO","msg":"greeting","traceId":"70","name":"tony"}
+{"time":"2025-09-02T11:32:28.985412+08:00","level":"ERROR","msg":"oops","traceId":"70","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.984121+08:00","level":"INFO","msg":"greeting","traceId":"57","name":"tony"}
+{"time":"2025-09-02T11:32:28.985426+08:00","level":"ERROR","msg":"oops","traceId":"57","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.983871+08:00","level":"INFO","msg":"greeting","traceId":"80","name":"tony"}
+{"time":"2025-09-02T11:32:28.985442+08:00","level":"ERROR","msg":"oops","traceId":"80","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.983874+08:00","level":"INFO","msg":"greeting","traceId":"81","name":"tony"}
+{"time":"2025-09-02T11:32:28.985454+08:00","level":"ERROR","msg":"oops","traceId":"81","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.983875+08:00","level":"INFO","msg":"greeting","traceId":"24","name":"tony"}
+{"time":"2025-09-02T11:32:28.985474+08:00","level":"ERROR","msg":"oops","traceId":"24","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.983864+08:00","level":"INFO","msg":"greeting","traceId":"20","name":"tony"}
+{"time":"2025-09-02T11:32:28.985484+08:00","level":"ERROR","msg":"oops","traceId":"20","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.983887+08:00","level":"INFO","msg":"greeting","traceId":"82","name":"tony"}
+{"time":"2025-09-02T11:32:28.985492+08:00","level":"ERROR","msg":"oops","traceId":"82","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.983893+08:00","level":"INFO","msg":"greeting","traceId":"2","name":"tony"}
+{"time":"2025-09-02T11:32:28.985519+08:00","level":"ERROR","msg":"oops","traceId":"2","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.983897+08:00","level":"INFO","msg":"greeting","traceId":"25","name":"tony"}
+{"time":"2025-09-02T11:32:28.983865+08:00","level":"INFO","msg":"greeting","traceId":"23","name":"tony"}
+{"time":"2025-09-02T11:32:28.983891+08:00","level":"INFO","msg":"greeting","traceId":"83","name":"tony"}
+{"time":"2025-09-02T11:32:28.9839+08:00","level":"INFO","msg":"greeting","traceId":"26","name":"tony"}
+{"time":"2025-09-02T11:32:28.983904+08:00","level":"INFO","msg":"greeting","traceId":"27","name":"tony"}
+{"time":"2025-09-02T11:32:28.985553+08:00","level":"ERROR","msg":"oops","traceId":"26","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.983918+08:00","level":"INFO","msg":"greeting","traceId":"28","name":"tony"}
+{"time":"2025-09-02T11:32:28.985571+08:00","level":"ERROR","msg":"oops","traceId":"28","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.983919+08:00","level":"INFO","msg":"greeting","traceId":"3","name":"tony"}
+{"time":"2025-09-02T11:32:28.983905+08:00","level":"INFO","msg":"greeting","traceId":"72","name":"tony"}
+{"time":"2025-09-02T11:32:28.984071+08:00","level":"INFO","msg":"greeting","traceId":"67","name":"tony"}
+{"time":"2025-09-02T11:32:28.983924+08:00","level":"INFO","msg":"greeting","traceId":"88","name":"tony"}
+{"time":"2025-09-02T11:32:28.983925+08:00","level":"INFO","msg":"greeting","traceId":"59","name":"tony"}
+{"time":"2025-09-02T11:32:28.983926+08:00","level":"INFO","msg":"greeting","traceId":"4","name":"tony"}
+{"time":"2025-09-02T11:32:28.983926+08:00","level":"INFO","msg":"greeting","traceId":"29","name":"tony"}
+{"time":"2025-09-02T11:32:28.983927+08:00","level":"INFO","msg":"greeting","traceId":"89","name":"tony"}
+{"time":"2025-09-02T11:32:28.98563+08:00","level":"ERROR","msg":"oops","traceId":"29","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.984406+08:00","level":"ERROR","msg":"oops","traceId":"79","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.983933+08:00","level":"INFO","msg":"greeting","traceId":"30","name":"tony"}
+{"time":"2025-09-02T11:32:28.985647+08:00","level":"ERROR","msg":"oops","traceId":"30","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.983933+08:00","level":"INFO","msg":"greeting","traceId":"6","name":"tony"}
+{"time":"2025-09-02T11:32:28.985655+08:00","level":"ERROR","msg":"oops","traceId":"6","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.983936+08:00","level":"INFO","msg":"greeting","traceId":"90","name":"tony"}
+{"time":"2025-09-02T11:32:28.985672+08:00","level":"ERROR","msg":"oops","traceId":"90","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.983936+08:00","level":"INFO","msg":"greeting","traceId":"7","name":"tony"}
+{"time":"2025-09-02T11:32:28.985534+08:00","level":"ERROR","msg":"oops","traceId":"25","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.985681+08:00","level":"ERROR","msg":"oops","traceId":"7","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.985547+08:00","level":"ERROR","msg":"oops","traceId":"23","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.98555+08:00","level":"ERROR","msg":"oops","traceId":"83","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.985555+08:00","level":"ERROR","msg":"oops","traceId":"27","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.983907+08:00","level":"INFO","msg":"greeting","traceId":"85","name":"tony"}
+{"time":"2025-09-02T11:32:28.985707+08:00","level":"ERROR","msg":"oops","traceId":"85","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.985589+08:00","level":"ERROR","msg":"oops","traceId":"3","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.985591+08:00","level":"ERROR","msg":"oops","traceId":"72","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.985598+08:00","level":"ERROR","msg":"oops","traceId":"67","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.985624+08:00","level":"ERROR","msg":"oops","traceId":"88","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.985626+08:00","level":"ERROR","msg":"oops","traceId":"59","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.985628+08:00","level":"ERROR","msg":"oops","traceId":"4","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.985631+08:00","level":"ERROR","msg":"oops","traceId":"89","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:28.983929+08:00","level":"INFO","msg":"greeting","traceId":"60","name":"tony"}
+{"time":"2025-09-02T11:32:28.985751+08:00","level":"ERROR","msg":"oops","traceId":"60","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:58.985314+08:00","level":"INFO","msg":"greeting","traceId":"123456","name":"tony"}
+{"time":"2025-09-02T11:32:58.985506+08:00","level":"ERROR","msg":"oops","traceId":"123456","err":"use of closed network connection","status":500}
+{"time":"2025-09-02T11:32:58.985573+08:00","level":"INFO","msg":"info message","traceId":"123456","userId":"12345","action":"login"}
+{"time":"2025-09-02T11:32:58.985595+08:00","level":"WARN","msg":"warning message","traceId":"123456","warningType":"performance","threshold":"80%"}
+{"time":"2025-09-02T11:32:58.985606+08:00","level":"ERROR","msg":"error message","traceId":"123456","err":"use of closed network connection","status":500,"retries":3}
+{"time":"2025-09-02T11:32:58.985618+08:00","level":"INFO","msg":"formatted info: user john_doe performed logout","traceId":"123456"}
+{"time":"2025-09-02T11:32:58.985639+08:00","level":"ERROR","msg":"formatted error: failed to connect to database after 5 attempts","traceId":"123456"}

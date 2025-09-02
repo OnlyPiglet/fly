@@ -50,7 +50,7 @@ func WithFileName(filename string) Option {
 }
 
 // WithFields 带上可以复用的上下文字段，key 为 string,value 是 基本类型如 int64,float64,string
-func WithFields(fields []map[string]interface{}) Option {
+func WithFields(fields map[string]interface{}) Option {
 	return func(kc *LogConfig) {
 		kc.Fields = fields
 	}
@@ -248,7 +248,7 @@ type LogConfig struct {
 	Writers       []io.Writer
 	LogFileConfig *LogFileConfig
 	LogFormat     int
-	Fields        []map[string]interface{}
+	Fields        map[string]interface{}
 }
 
 type LogFileConfig struct {
@@ -259,12 +259,10 @@ type LogFileConfig struct {
 }
 
 // convertFieldsToArgs 将 Fields 转换为 slog.With() 需要的参数格式
-func convertFieldsToArgs(fields []map[string]interface{}) []any {
+func convertFieldsToArgs(fields map[string]interface{}) []any {
 	var args []any
-	for _, fieldMap := range fields {
-		for key, value := range fieldMap {
-			args = append(args, key, value)
-		}
+	for key, value := range fields {
+		args = append(args, key, value)
 	}
 	return args
 }

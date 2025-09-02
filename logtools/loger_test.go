@@ -35,11 +35,11 @@ func TestLogUtil(t *testing.T) {
 
 func TestLogUtilWithFields(t *testing.T) {
 	// 创建预设字段
-	fields := []map[string]interface{}{
-		{"service": "test-service"},
-		{"version": 123},
-		{"environment": "test"},
-		{"component": "logger"},
+	fields := map[string]interface{}{
+		"service":     "test-service",
+		"version":     123,
+		"environment": "test",
+		"component":   "logger",
 	}
 
 	// 使用 WithFields 创建 logger
