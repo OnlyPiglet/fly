@@ -74,7 +74,7 @@ func Struct2URLValues[T any](data T) (url.Values, error) {
 }
 
 var HttpHyperTransport = &http.Transport{
-	DisableKeepAlives:   true,
+	DisableKeepAlives:   false,
 	MaxConnsPerHost:     0,
 	MaxIdleConns:        3000,
 	MaxIdleConnsPerHost: 300,
