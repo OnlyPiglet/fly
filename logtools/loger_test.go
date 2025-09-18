@@ -14,8 +14,12 @@ func TestLogUtilForConcurrency(t *testing.T) {
 		ctx := context.Background()
 		go AddLogRecord(ctx, klog, strconv.Itoa(i))
 	}
+	klog2 := NewXLog(WithLevel(INFO), WithLogFormat(JsonFormat), WithFileName("test2.log"))
+
+	klog2.Infof("asdasdasd")
 	time.Sleep(30 * time.Second)
 	klog.Close()
+	klog2.Close()
 }
 
 func AddLogRecord(ctx context.Context, klog *Log, traceId string) {

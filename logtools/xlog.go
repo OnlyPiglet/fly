@@ -93,54 +93,66 @@ func WithLogFormat(logFormat int) Option {
 
 type Option func(c *LogConfig)
 
-// NewXLog create NewXLog with Option,may has race create,but don't be care
+// NewXLog create NewXLog with Option, creates a new instance each time
 func NewXLog(opts ...Option) *Log {
-
-	if Logger != nil {
-		return Logger
+	// 创建新的配置副本，避免修改默认配置
+	config := LogConfig{
+		Level:   defaultKeLogConfig.Level,
+		Writers: make([]io.Writer, 0),
+		LogFileConfig: &LogFileConfig{
+			LogFileName: defaultKeLogConfig.LogFileConfig.LogFileName,
+			MaxKept:     defaultKeLogConfig.LogFileConfig.MaxKept,
+			MaxMegaByte: defaultKeLogConfig.LogFileConfig.MaxMegaByte,
+			MaxAge:      defaultKeLogConfig.LogFileConfig.MaxAge,
+		},
+		LogFormat: defaultKeLogConfig.LogFormat,
+		Fields:    make(map[string]interface{}),
 	}
 
-	Logger = &Log{
+	logger := &Log{
 		once:         sync.Once{},
 		writerCloser: make([]io.WriteCloser, 0),
-		logConfig:    &defaultKeLogConfig,
+		logConfig:    &config,
 	}
 
-	defer func() {
-		go Logger.once.Do(
-			func() {
-				Logger.preStop()
-			})
-	}()
-
+	// 应用选项
 	for _, opt := range opts {
-		opt(Logger.logConfig)
+		opt(logger.logConfig)
 	}
 
-	if Logger.logConfig.LogFileConfig.LogFileName != "" {
-
+	// 如果指定了文件名，创建文件写入器
+	if logger.logConfig.LogFileConfig.LogFileName != "" {
 		jackLogger := &lumberjack.Logger{
-			Filename:   Logger.logConfig.LogFileConfig.LogFileName,
-			MaxSize:    Logger.logConfig.LogFileConfig.MaxMegaByte, // megabytes
-			MaxBackups: Logger.logConfig.LogFileConfig.MaxKept,
-			MaxAge:     Logger.logConfig.LogFileConfig.MaxAge, //days
+			Filename:   logger.logConfig.LogFileConfig.LogFileName,
+			MaxSize:    logger.logConfig.LogFileConfig.MaxMegaByte, // megabytes
+			MaxBackups: logger.logConfig.LogFileConfig.MaxKept,
+			MaxAge:     logger.logConfig.LogFileConfig.MaxAge, //days
 			Compress:   true,                                  // disabled by default
 		}
 
-		Logger.writerCloser = append(Logger.writerCloser, jackLogger)
-		Logger.logConfig.Writers = append(Logger.logConfig.Writers, jackLogger)
-
+		logger.writerCloser = append(logger.writerCloser, jackLogger)
+		logger.logConfig.Writers = append(logger.logConfig.Writers, jackLogger)
 	}
 
 	// 将 Fields 转换为 slog.With() 需要的参数格式
-	withArgs := convertFieldsToArgs(Logger.logConfig.Fields)
+	withArgs := convertFieldsToArgs(logger.logConfig.Fields)
 
-	if Logger.logConfig.LogFormat == JsonFormat {
-		Logger.logger = slog.New(slog.NewJSONHandler(io.MultiWriter(Logger.logConfig.Writers...), &slog.HandlerOptions{Level: switchLevel(Logger.logConfig.Level)})).With(withArgs...)
+	if logger.logConfig.LogFormat == JsonFormat {
+		logger.logger = slog.New(slog.NewJSONHandler(io.MultiWriter(logger.logConfig.Writers...), &slog.HandlerOptions{Level: switchLevel(logger.logConfig.Level)})).With(withArgs...)
 	} else {
-		Logger.logger = slog.New(slog.NewTextHandler(io.MultiWriter(Logger.logConfig.Writers...), &slog.HandlerOptions{Level: switchLevel(Logger.logConfig.Level)})).With(withArgs...)
+		logger.logger = slog.New(slog.NewTextHandler(io.MultiWriter(logger.logConfig.Writers...), &slog.HandlerOptions{Level: switchLevel(logger.logConfig.Level)})).With(withArgs...)
 	}
-	return Logger
+
+	// 设置信号处理（只为第一个创建的logger设置）
+	if Logger == nil {
+		Logger = logger
+		go logger.once.Do(
+			func() {
+				logger.preStop()
+			})
+	}
+
+	return logger
 }
 
 // Close recycle resource before program exit like exit(0)
