@@ -27,11 +27,6 @@ const (
 
 type LoggerContextKey struct{}
 
-// GetLogger return instance of [Logger].
-func GetLogger(ctx context.Context) *Log {
-	return Logger
-}
-
 // WithLevel set log level
 func WithLevel(level int) Option {
 	return func(kc *LogConfig) {
