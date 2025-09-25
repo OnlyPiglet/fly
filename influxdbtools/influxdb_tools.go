@@ -9,6 +9,7 @@ import (
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	influxapi "github.com/influxdata/influxdb-client-go/v2/api"
 	"github.com/influxdata/influxdb-client-go/v2/api/write"
+	"github.com/influxdata/influxdb-client-go/v2/domain"
 )
 
 // InfluxConfig InfluxDB集群配置
@@ -75,7 +76,7 @@ func (i *InfluxClient) initialize() error {
 	i.writeAPI = client.WriteAPIBlocking(i.config.Org, i.config.Bucket)
 	i.queryAPI = client.QueryAPI(i.config.Org)
 
-	// 尝试检查Bucket是否存在（失败不影响写入能力）
+	// 检查并确保Bucket存在；若不存在则尝试自动创建
 	if err := i.ensureBucketExists(ctx); err != nil {
 		fmt.Printf("Warning: could not ensure bucket exists: %v\n", err)
 	}
@@ -114,7 +115,7 @@ func (i *InfluxClient) WritePoint(p *write.Point) error {
 	if i.writeAPI == nil {
 		return fmt.Errorf("influx write api not initialized")
 	}
-    return i.writeAPI.WritePoint(context.Background(), p)
+	return i.writeAPI.WritePoint(context.Background(), p)
 }
 
 // WriteBatch 批量写入数据点
@@ -125,7 +126,7 @@ func (i *InfluxClient) WriteBatch(points []*write.Point) error {
 	if i.writeAPI == nil {
 		return fmt.Errorf("influx write api not initialized")
 	}
-    return i.writeAPI.WritePoint(context.Background(), points...)
+	return i.writeAPI.WritePoint(context.Background(), points...)
 }
 
 // WriteLineProtocol 以Line Protocol写入
@@ -186,8 +187,27 @@ func (i *InfluxClient) ensureBucketExists(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("find bucket: %w", err)
 	}
-	if b == nil {
-		return fmt.Errorf("bucket %s not found", i.config.Bucket)
+	if b != nil {
+		return nil
 	}
+
+	// 不存在则打印警告并创建
+	fmt.Printf("Warning: bucket %q not found in org %q, creating...\n", i.config.Bucket, i.config.Org)
+	orgAPI := i.client.OrganizationsAPI()
+	if orgAPI == nil {
+		return fmt.Errorf("organizations api not available")
+	}
+	var org *domain.Organization
+	org, err = orgAPI.FindOrganizationByName(ctx, i.config.Org)
+	if err != nil {
+		return fmt.Errorf("find organization %s: %w", i.config.Org, err)
+	}
+	if org == nil {
+		return fmt.Errorf("organization %s not found", i.config.Org)
+	}
+	if _, err := buckets.CreateBucketWithName(ctx, org, i.config.Bucket); err != nil {
+		return fmt.Errorf("create bucket %s: %w", i.config.Bucket, err)
+	}
+	fmt.Printf("Info: bucket %q created successfully.\n", i.config.Bucket)
 	return nil
 }
