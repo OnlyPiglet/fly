@@ -1,13 +1,14 @@
 module github.com/OnlyPiglet/fly
 
-go 1.24
+go 1.24.0
 
-toolchain go1.24.5
+toolchain go1.24.6
 
 require (
 	github.com/ClickHouse/clickhouse-go/v2 v2.40.1
 	github.com/IBM/sarama v1.46.0
 	github.com/disintegration/imaging v1.6.2
+	github.com/gofrs/flock v0.13.0
 	github.com/influxdata/influxdb-client-go/v2 v2.14.0
 	github.com/natefinch/lumberjack v2.0.0+incompatible
 	github.com/redis/go-redis/extra/redisotel/v9 v9.13.0
@@ -63,7 +64,7 @@ require (
 	golang.org/x/crypto v0.41.0 // indirect
 	golang.org/x/image v0.0.0-20191009234506-e7c1f5e7dbb8 // indirect
 	golang.org/x/net v0.43.0 // indirect
-	golang.org/x/sys v0.35.0 // indirect
+	golang.org/x/sys v0.37.0 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
