@@ -35,12 +35,13 @@ type FrameConfig struct {
 
 type FrameDecoder interface {
 	GetConfig() FrameConfig
-	ValidateChecksum(frame []byte) bool
+	ValidateChecksum(frame Frame) bool
 }
 
 type Frame struct {
 	RawData []byte
 	Header  []byte
+	Length  []byte
 	Body    []byte
 }
 
@@ -73,6 +74,9 @@ func DecodeFrames(conn *net.TCPConn, dec FrameDecoder, bufSize int, handler Fram
 			frame, consumed, perr := parseBuffer(buf, dec)
 			if frame != nil {
 				buf = buf[consumed:]
+				if !dec.ValidateChecksum(*frame) {
+					continue
+				}
 				if handler != nil {
 					f := frame
 					runtimetools.Go(func() {
@@ -141,9 +145,6 @@ func parseBuffer(buf []byte, dec FrameDecoder) (*Frame, int, error) {
 	if cfg.EndBytes != nil && !bytes.HasSuffix(frame, cfg.EndBytes) {
 		return nil, totalLen, ErrInvalidFrame
 	}
-	if !dec.ValidateChecksum(frame) {
-		return nil, totalLen, ErrChecksumMismatch
-	}
 
 	bodyStart := lengthEnd
 	bodyEnd := totalLen - cfg.ChecksumSize
@@ -154,6 +155,7 @@ func parseBuffer(buf []byte, dec FrameDecoder) (*Frame, int, error) {
 	return &Frame{
 		RawData: append([]byte(nil), frame...),
 		Header:  append([]byte(nil), frame[:lengthEnd]...),
+		Length:  append([]byte(nil), frame[cfg.FrameLengthOffset:cfg.FrameLengthOffset+cfg.FrameLengthSize]...),
 		Body:    append([]byte(nil), frame[bodyStart:bodyEnd]...),
 	}, totalLen, nil
 }
