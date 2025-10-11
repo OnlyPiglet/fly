@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-
-	"github.com/OnlyPiglet/fly/runtimetools"
 )
 
 var (
@@ -80,11 +78,9 @@ func DecodeFrames(conn *net.TCPConn, dec FrameDecoder, bufSize int, handler Fram
 				}
 				if handler != nil {
 					f := frame
-					runtimetools.Go(func() {
-						if err := handler(f); err != nil {
-							fmt.Printf("[frame_decode] handler error: %v\n", err)
-						}
-					})
+					if herr := handler(f); herr != nil {
+						fmt.Printf("[frame_decode] handler error: %v\n", herr)
+					}
 				}
 				continue
 			}
