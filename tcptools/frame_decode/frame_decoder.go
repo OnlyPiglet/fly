@@ -29,6 +29,7 @@ type FrameConfig struct {
 	FrameLengthOffset      int
 	FrameLengthSize        int
 	FrameTotalLengthAdjust int
+	ChecksumIndex          int
 	ChecksumSize           int
 	MaxFrameSize           int
 }
@@ -39,10 +40,10 @@ type FrameDecoder interface {
 }
 
 type Frame struct {
-	RawData []byte
-	Header  []byte
-	Length  []byte
-	Body    []byte
+	RawData  []byte
+	Length   []byte
+	Body     []byte
+	Checksum []byte
 }
 
 type FrameHandler func(*Frame) error
@@ -152,11 +153,18 @@ func parseBuffer(buf []byte, dec FrameDecoder) (*Frame, int, error) {
 		bodyEnd -= len(cfg.EndBytes)
 	}
 
+	// 计算checksum的实际起始位置
+	checksumStart := cfg.ChecksumIndex
+	if checksumStart < 0 {
+		checksumStart = len(frame) + cfg.ChecksumIndex
+	}
+	checksumEnd := checksumStart + cfg.ChecksumSize
+
 	return &Frame{
-		RawData: append([]byte(nil), frame...),
-		Header:  append([]byte(nil), frame[:lengthEnd]...),
-		Length:  append([]byte(nil), frame[cfg.FrameLengthOffset:cfg.FrameLengthOffset+cfg.FrameLengthSize]...),
-		Body:    append([]byte(nil), frame[bodyStart:bodyEnd]...),
+		RawData:  append([]byte(nil), frame...),
+		Length:   append([]byte(nil), frame[cfg.FrameLengthOffset:cfg.FrameLengthOffset+cfg.FrameLengthSize]...),
+		Body:     append([]byte(nil), frame[bodyStart:bodyEnd]...),
+		Checksum: append([]byte(nil), frame[checksumStart:checksumEnd]...),
 	}, totalLen, nil
 }
 
