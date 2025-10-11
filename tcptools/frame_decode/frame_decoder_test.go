@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// 起始2字节 长度2字节【body+校验+结束】 +body N字节 + 校验 2字节【长度+bvk】+ 结束 2字节
+// 起始2字节 长度2字节【body+校验+结束】 +body N字节 + 校验 1字节【长度+bvk】+ 结束 2字节
 
 type TestoneFrameDecoder struct {
 }
@@ -17,10 +17,11 @@ func (d *TestoneFrameDecoder) GetConfig() FrameConfig {
 		StartBytes:             []byte{0xfc, 0xfe},
 		EndBytes:               []byte{0xfc, 0xee},
 		ByteOrder:              binary.BigEndian,
-		FrameLengthOffset:      2, //长度的index
-		FrameLengthSize:        2, // 长度的字节长度
-		FrameTotalLengthAdjust: 4, // 起始2字节 + 长度2字节
-		ChecksumSize:           2,
+		FrameLengthOffset:      2,  //长度的index
+		FrameLengthSize:        2,  // 长度的字节长度
+		FrameTotalLengthAdjust: 4,  // 起始2字节 + 长度2字节
+		ChecksumIndex:          -3, // checksum在frame中的起始位置，需要根据实际协议设置
+		ChecksumSize:           1,
 	}
 }
 
@@ -57,9 +58,10 @@ func (d *TestTwoFrameDecoder) GetConfig() FrameConfig {
 		StartBytes:             []byte{0x68},
 		EndBytes:               []byte{},
 		ByteOrder:              binary.BigEndian,
-		FrameLengthOffset:      1, //长度的index
-		FrameLengthSize:        1, // 长度的字节长度
-		FrameTotalLengthAdjust: 4, // 起始2字节 + 长度2字节
+		FrameLengthOffset:      1,  //长度的index
+		FrameLengthSize:        1,  // 长度的字节长度
+		FrameTotalLengthAdjust: 4,  // 起始2字节 + 长度2字节
+		ChecksumIndex:          -2, // checksum在frame中的起始位置，需要根据实际协议设置
 		ChecksumSize:           2,
 	}
 }

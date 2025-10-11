@@ -12,3 +12,9 @@ func TestCalculateChecksumTest(t *testing.T) {
 	fmt.Printf("累加和（十进制）: %d\n", checksum)
 	fmt.Printf("累加和（十六进制）: 0x%02x\n", checksum)
 }
+
+func TestASCIIStringToBytes(t *testing.T) {
+	a := "123123"
+	bytes := ASCIIStringToBytes(a)
+	println(BytesToASCIIString(bytes))
+}
