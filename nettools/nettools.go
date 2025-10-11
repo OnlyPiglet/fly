@@ -6,9 +6,34 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
+	"strconv"
+	"strings"
 )
 
-// 获取外网ip地址
+func IPToInt(ip string) uint32 {
+	parts := strings.Split(ip, ".")
+	if len(parts) != 4 {
+		return 0
+	}
+
+	var result uint32
+	for i := 0; i < 4; i++ {
+		num, _ := strconv.Atoi(parts[i])
+		result |= uint32(num) << uint(24-8*i)
+	}
+	return result
+}
+
+func IntToIP(ipInt uint32) string {
+	parts := make([]string, 4)
+	for i := 0; i < 4; i++ {
+		part := (ipInt >> uint(24-8*i)) & 0xFF
+		parts[i] = strconv.Itoa(int(part))
+	}
+	return strings.Join(parts, ".")
+}
+
+// GetLocation 获取外网ip地址
 func GetLocation(ip, key string) string {
 	if ip == "127.0.0.1" || ip == "localhost" {
 		return "内部IP"
@@ -36,8 +61,8 @@ func GetLocation(ip, key string) string {
 	return m["country"] + "-" + m["province"] + "-" + m["city"] + "-" + m["district"] + "-" + m["isp"]
 }
 
-// 获取局域网ip地址
-func GetLocaHonst() string {
+// GetLocalHost 获取局域网ip地址
+func GetLocalHost() string {
 	netInterfaces, err := net.Interfaces()
 	if err != nil {
 		fmt.Println("net.Interfaces failed, err:", err.Error())
