@@ -61,8 +61,8 @@ func GetLocation(ip, key string) string {
 	return m["country"] + "-" + m["province"] + "-" + m["city"] + "-" + m["district"] + "-" + m["isp"]
 }
 
-// GetLocalHost 获取局域网ip地址
-func GetLocalHost() string {
+// GetLocaHonst 获取局域网ip地址
+func GetLocaHonst() string {
 	netInterfaces, err := net.Interfaces()
 	if err != nil {
 		fmt.Println("net.Interfaces failed, err:", err.Error())
