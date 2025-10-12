@@ -86,6 +86,20 @@ func WithLogFormat(logFormat int) Option {
 	}
 }
 
+// WithTimeFormat set time format string, e.g. "2006-01-02 15:04:05"
+func WithTimeFormat(timeFormat string) Option {
+	return func(kc *LogConfig) {
+		kc.TimeFormat = timeFormat
+	}
+}
+
+// WithMessageKey set message key, default is "msg"
+func WithMessageKey(messageKey string) Option {
+	return func(kc *LogConfig) {
+		kc.MessageKey = messageKey
+	}
+}
+
 type Option func(c *LogConfig)
 
 // NewXLog create NewXLog with Option, creates a new instance each time
@@ -100,8 +114,10 @@ func NewXLog(opts ...Option) *Log {
 			MaxMegaByte: defaultKeLogConfig.LogFileConfig.MaxMegaByte,
 			MaxAge:      defaultKeLogConfig.LogFileConfig.MaxAge,
 		},
-		LogFormat: defaultKeLogConfig.LogFormat,
-		Fields:    make(map[string]interface{}),
+		LogFormat:  defaultKeLogConfig.LogFormat,
+		TimeFormat: defaultKeLogConfig.TimeFormat,
+		MessageKey: defaultKeLogConfig.MessageKey,
+		Fields:     make(map[string]interface{}),
 	}
 
 	logger := &Log{
@@ -132,11 +148,30 @@ func NewXLog(opts ...Option) *Log {
 	// 将 Fields 转换为 slog.With() 需要的参数格式
 	withArgs := convertFieldsToArgs(logger.logConfig.Fields)
 
-	if logger.logConfig.LogFormat == JsonFormat {
-		logger.logger = slog.New(slog.NewJSONHandler(io.MultiWriter(logger.logConfig.Writers...), &slog.HandlerOptions{Level: switchLevel(logger.logConfig.Level)})).With(withArgs...)
-	} else {
-		logger.logger = slog.New(slog.NewTextHandler(io.MultiWriter(logger.logConfig.Writers...), &slog.HandlerOptions{Level: switchLevel(logger.logConfig.Level)})).With(withArgs...)
+	// 创建handler选项，支持自定义时间格式和消息key
+	handlerOptions := &slog.HandlerOptions{
+		Level: switchLevel(logger.logConfig.Level),
+		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+			// 处理时间格式
+			if a.Key == slog.TimeKey && logger.logConfig.TimeFormat != "" {
+				return slog.String(slog.TimeKey, a.Value.Time().Format(logger.logConfig.TimeFormat))
+			}
+			// 处理消息key
+			if a.Key == slog.MessageKey && logger.logConfig.MessageKey != "" {
+				return slog.String(logger.logConfig.MessageKey, a.Value.String())
+			}
+			return a
+		},
 	}
+
+	var baseHandler slog.Handler
+	if logger.logConfig.LogFormat == JsonFormat {
+		baseHandler = slog.NewJSONHandler(io.MultiWriter(logger.logConfig.Writers...), handlerOptions)
+	} else {
+		baseHandler = slog.NewTextHandler(io.MultiWriter(logger.logConfig.Writers...), handlerOptions)
+	}
+
+	logger.logger = slog.New(baseHandler).With(withArgs...)
 
 	// 设置信号处理（只为第一个创建的logger设置）
 	if Logger == nil {
@@ -238,7 +273,9 @@ var defaultKeLogConfig = LogConfig{
 		MaxMegaByte: 100,
 		MaxAge:      28,
 	},
-	LogFormat: JsonFormat,
+	LogFormat:  JsonFormat,
+	TimeFormat: "", // 空字符串表示使用slog默认时间格式
+	MessageKey: "", // 空字符串表示使用slog默认消息key "msg"
 }
 
 var Logger *Log
@@ -256,6 +293,8 @@ type LogConfig struct {
 	LogFileConfig *LogFileConfig
 	LogFormat     int
 	Fields        map[string]interface{}
+	TimeFormat    string // 时间格式化字符串，如 "2006-01-02 15:04:05"
+	MessageKey    string // 消息体的key，默认为 "msg"
 }
 
 type LogFileConfig struct {
