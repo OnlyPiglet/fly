@@ -11,6 +11,8 @@ func TestLogUtilForConcurrency(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		withContext := klog.AddAttrWithContext(context.Background(), "index", i)
 		klog.InfoWithContext(withContext, "asd")
+		klog.InfoWithContext(withContext, "edf")
+		klog.InfoWithContext(withContext, "xyz")
 	}
 }
 
