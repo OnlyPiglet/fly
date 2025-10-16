@@ -10,6 +10,7 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/OnlyPiglet/fly/runtimetools"
 	"github.com/natefinch/lumberjack"
 )
 
@@ -179,7 +180,7 @@ func NewXLog(opts ...Option) *Log {
 		baseHandler = slog.NewTextHandler(io.MultiWriter(logger.logConfig.Writers...), handlerOptions)
 	}
 
-	logger.logger = slog.New(baseHandler).With(withArgs...)
+	logger.logger = slog.New(baseHandler).With(withArgs...).With(runtimetools.GetCallStack(2))
 
 	// 设置信号处理（只为第一个创建的logger设置）
 	if Logger == nil {
