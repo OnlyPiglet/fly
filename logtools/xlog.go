@@ -7,10 +7,11 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"runtime"
 	"sync"
 	"syscall"
+	"time"
 
-	"github.com/OnlyPiglet/fly/runtimetools"
 	"github.com/natefinch/lumberjack"
 )
 
@@ -180,7 +181,7 @@ func NewXLog(opts ...Option) *Log {
 		baseHandler = slog.NewTextHandler(io.MultiWriter(logger.logConfig.Writers...), handlerOptions)
 	}
 
-	logger.logger = slog.New(baseHandler).With(withArgs...).With(runtimetools.GetCallStack(2))
+	logger.logger = slog.New(baseHandler).With(withArgs...)
 
 	// 设置信号处理（只为第一个创建的logger设置）
 	if Logger == nil {
@@ -210,62 +211,110 @@ func (kl *Log) AddAttrWithContext(ctx context.Context, args ...any) context.Cont
 
 // DebugWithContext record log with level [DEBUG] with given context for concurrency write
 func (kl *Log) DebugWithContext(ctx context.Context, msg string, args ...any) {
-	kl.contextLogger(&ctx).DebugContext(ctx, msg, args...)
+	if kl.logConfig.Source {
+		kl.logWithSource(ctx, slog.LevelDebug, msg, args...)
+	} else {
+		kl.contextLogger(&ctx).DebugContext(ctx, msg, args...)
+	}
 }
 
 // InfoWithContext record log with level [INFO] with given context for concurrency write
 func (kl *Log) InfoWithContext(ctx context.Context, msg string, args ...any) {
-	kl.contextLogger(&ctx).InfoContext(ctx, msg, args...)
+	if kl.logConfig.Source {
+		kl.logWithSource(ctx, slog.LevelInfo, msg, args...)
+	} else {
+		kl.contextLogger(&ctx).InfoContext(ctx, msg, args...)
+	}
 }
 
 // WarnWithContext record log with level [WARN] with given context for concurrency write
 func (kl *Log) WarnWithContext(ctx context.Context, msg string, args ...any) {
-	kl.contextLogger(&ctx).WarnContext(ctx, msg, args...)
+	if kl.logConfig.Source {
+		kl.logWithSource(ctx, slog.LevelWarn, msg, args...)
+	} else {
+		kl.contextLogger(&ctx).WarnContext(ctx, msg, args...)
+	}
 }
 
 // ErrorWithContext record log with level [ERROR] with given context for concurrency write
 func (kl *Log) ErrorWithContext(ctx context.Context, msg string, args ...any) {
-	kl.contextLogger(&ctx).ErrorContext(ctx, msg, args...)
+	if kl.logConfig.Source {
+		kl.logWithSource(ctx, slog.LevelError, msg, args...)
+	} else {
+		kl.contextLogger(&ctx).ErrorContext(ctx, msg, args...)
+	}
 }
 
 // Debug record log with level [DEBUG]
 func (kl *Log) Debug(msg string, args ...any) {
-	kl.logger.Debug(msg, args...)
+	if kl.logConfig.Source {
+		kl.logWithSource(context.Background(), slog.LevelDebug, msg, args...)
+	} else {
+		kl.logger.Debug(msg, args...)
+	}
 }
 
 // Debugf record log with level [DEBUG]
 func (kl *Log) Debugf(format string, a ...any) {
-	kl.logger.Debug(fmt.Sprintf(format, a...))
+	if kl.logConfig.Source {
+		kl.logWithSource(context.Background(), slog.LevelDebug, fmt.Sprintf(format, a...))
+	} else {
+		kl.logger.Debug(fmt.Sprintf(format, a...))
+	}
 }
 
 // Info record log with level [INFO]
 func (kl *Log) Info(msg string, args ...any) {
-	kl.logger.Info(msg, args...)
+	if kl.logConfig.Source {
+		kl.logWithSource(context.Background(), slog.LevelInfo, msg, args...)
+	} else {
+		kl.logger.Info(msg, args...)
+	}
 }
 
 // Infof record log with level [INFO]
 func (kl *Log) Infof(format string, a ...any) {
-	kl.logger.Info(fmt.Sprintf(format, a...))
+	if kl.logConfig.Source {
+		kl.logWithSource(context.Background(), slog.LevelInfo, fmt.Sprintf(format, a...))
+	} else {
+		kl.logger.Info(fmt.Sprintf(format, a...))
+	}
 }
 
 // Warn record log with level [WARN]
 func (kl *Log) Warn(msg string, args ...any) {
-	kl.logger.Warn(msg, args...)
+	if kl.logConfig.Source {
+		kl.logWithSource(context.Background(), slog.LevelWarn, msg, args...)
+	} else {
+		kl.logger.Warn(msg, args...)
+	}
 }
 
 // Warnf record log with level [Warn]
 func (kl *Log) Warnf(format string, a ...any) {
-	kl.logger.Warn(fmt.Sprintf(format, a...))
+	if kl.logConfig.Source {
+		kl.logWithSource(context.Background(), slog.LevelWarn, fmt.Sprintf(format, a...))
+	} else {
+		kl.logger.Warn(fmt.Sprintf(format, a...))
+	}
 }
 
 // Error record log with level [ERROR]
 func (kl *Log) Error(msg string, args ...any) {
-	kl.logger.Error(msg, args...)
+	if kl.logConfig.Source {
+		kl.logWithSource(context.Background(), slog.LevelError, msg, args...)
+	} else {
+		kl.logger.Error(msg, args...)
+	}
 }
 
 // Errorf record log with level [Error]
 func (kl *Log) Errorf(format string, a ...any) {
-	kl.logger.Error(fmt.Sprintf(format, a...))
+	if kl.logConfig.Source {
+		kl.logWithSource(context.Background(), slog.LevelError, fmt.Sprintf(format, a...))
+	} else {
+		kl.logger.Error(fmt.Sprintf(format, a...))
+	}
 }
 
 // AddAttrs add key/value attr pairs on KeLog.logger
@@ -375,4 +424,24 @@ func (kl *Log) contextLogger(ctx *context.Context) *slog.Logger {
 // updateContextLogger update new logger with some option
 func updateContextLogger(ctx *context.Context, logger *slog.Logger) {
 	*ctx = context.WithValue(*ctx, LoggerContextKey{}, logger)
+}
+
+// logWithSource 记录带有正确调用栈信息的日志
+func (kl *Log) logWithSource(ctx context.Context, level slog.Level, msg string, args ...any) {
+	if !kl.logger.Enabled(ctx, level) {
+		return
+	}
+
+	var pc uintptr
+	var pcs [1]uintptr
+	// 获取调用者的程序计数器，跳过: runtime.Callers -> logWithSource -> InfoWithContext -> TestLogUtilForConcurrency
+	runtime.Callers(2, pcs[:])
+	pc = pcs[0]
+
+	r := slog.NewRecord(time.Now(), level, msg, pc)
+	r.Add(args...)
+
+	// 如果有context logger，使用它；否则使用默认logger
+	logger := kl.contextLogger(&ctx)
+	logger.Handler().Handle(ctx, r)
 }
