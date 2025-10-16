@@ -7,11 +7,10 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
-	"runtime"
 	"sync"
 	"syscall"
-	"time"
 
+	"github.com/OnlyPiglet/fly/runtimetools"
 	"github.com/natefinch/lumberjack"
 )
 
@@ -115,7 +114,7 @@ func NewXLog(opts ...Option) *Log {
 	// 创建新的配置副本，避免修改默认配置
 	config := LogConfig{
 		Level:   defaultKeLogConfig.Level,
-		Writers: make([]io.Writer, 0),
+		Writers: []io.Writer{os.Stdout}, // 默认输出到标准输出
 		LogFileConfig: &LogFileConfig{
 			LogFileName: defaultKeLogConfig.LogFileConfig.LogFileName,
 			MaxKept:     defaultKeLogConfig.LogFileConfig.MaxKept,
@@ -169,10 +168,6 @@ func NewXLog(opts ...Option) *Log {
 			if a.Key == slog.MessageKey && logger.logConfig.MessageKey != "" {
 				return slog.String(logger.logConfig.MessageKey, a.Value.String())
 			}
-			// 处理source信息，添加多层调用栈
-			if a.Key == slog.SourceKey && logger.logConfig.Source {
-				return logger.enhanceSourceInfo(a)
-			}
 			return a
 		},
 		AddSource: false, // 使用我们自定义的多层调用栈实现
@@ -215,53 +210,48 @@ func (kl *Log) AddAttrWithContext(ctx context.Context, args ...any) context.Cont
 
 // DebugWithContext record log with level [DEBUG] with given context for concurrency write
 func (kl *Log) DebugWithContext(ctx context.Context, msg string, args ...any) {
-	if kl.logConfig.Source {
-		kl.logWithSource(ctx, slog.LevelDebug, msg, args...)
-	} else {
-		kl.contextLogger(&ctx).DebugContext(ctx, msg, args...)
+	if sourceArgs := addSource(kl, 1); sourceArgs != nil {
+		args = append(args, sourceArgs...)
 	}
+	kl.contextLogger(&ctx).DebugContext(ctx, msg, args...)
 }
 
 // InfoWithContext record log with level [INFO] with given context for concurrency write
 func (kl *Log) InfoWithContext(ctx context.Context, msg string, args ...any) {
-	if kl.logConfig.Source {
-		kl.logWithSource(ctx, slog.LevelInfo, msg, args...)
-	} else {
-		kl.contextLogger(&ctx).InfoContext(ctx, msg, args...)
+	if sourceArgs := addSource(kl, 1); sourceArgs != nil {
+		args = append(args, sourceArgs...)
 	}
+	kl.contextLogger(&ctx).InfoContext(ctx, msg, args...)
 }
 
 // WarnWithContext record log with level [WARN] with given context for concurrency write
 func (kl *Log) WarnWithContext(ctx context.Context, msg string, args ...any) {
-	if kl.logConfig.Source {
-		kl.logWithSource(ctx, slog.LevelWarn, msg, args...)
-	} else {
-		kl.contextLogger(&ctx).WarnContext(ctx, msg, args...)
+	if sourceArgs := addSource(kl, 1); sourceArgs != nil {
+		args = append(args, sourceArgs...)
 	}
+	kl.contextLogger(&ctx).WarnContext(ctx, msg, args...)
 }
 
 // ErrorWithContext record log with level [ERROR] with given context for concurrency write
 func (kl *Log) ErrorWithContext(ctx context.Context, msg string, args ...any) {
-	if kl.logConfig.Source {
-		kl.logWithSource(ctx, slog.LevelError, msg, args...)
-	} else {
-		kl.contextLogger(&ctx).ErrorContext(ctx, msg, args...)
+	if sourceArgs := addSource(kl, 1); sourceArgs != nil {
+		args = append(args, sourceArgs...)
 	}
+	kl.contextLogger(&ctx).ErrorContext(ctx, msg, args...)
 }
 
 // Debug record log with level [DEBUG]
 func (kl *Log) Debug(msg string, args ...any) {
-	if kl.logConfig.Source {
-		kl.logWithSource(context.Background(), slog.LevelDebug, msg, args...)
-	} else {
-		kl.logger.Debug(msg, args...)
+	if sourceArgs := addSource(kl, 1); sourceArgs != nil {
+		args = append(args, sourceArgs...)
 	}
+	kl.logger.Debug(msg, args...)
 }
 
 // Debugf record log with level [DEBUG]
 func (kl *Log) Debugf(format string, a ...any) {
-	if kl.logConfig.Source {
-		kl.logWithSource(context.Background(), slog.LevelDebug, fmt.Sprintf(format, a...))
+	if sourceArgs := addSource(kl, 1); sourceArgs != nil {
+		kl.logger.Debug(fmt.Sprintf(format, a...), sourceArgs...)
 	} else {
 		kl.logger.Debug(fmt.Sprintf(format, a...))
 	}
@@ -269,17 +259,16 @@ func (kl *Log) Debugf(format string, a ...any) {
 
 // Info record log with level [INFO]
 func (kl *Log) Info(msg string, args ...any) {
-	if kl.logConfig.Source {
-		kl.logWithSource(context.Background(), slog.LevelInfo, msg, args...)
-	} else {
-		kl.logger.Info(msg, args...)
+	if sourceArgs := addSource(kl, 1); sourceArgs != nil {
+		args = append(args, sourceArgs...)
 	}
+	kl.logger.Info(msg, args...)
 }
 
 // Infof record log with level [INFO]
 func (kl *Log) Infof(format string, a ...any) {
-	if kl.logConfig.Source {
-		kl.logWithSource(context.Background(), slog.LevelInfo, fmt.Sprintf(format, a...))
+	if sourceArgs := addSource(kl, 1); sourceArgs != nil {
+		kl.logger.Info(fmt.Sprintf(format, a...), sourceArgs...)
 	} else {
 		kl.logger.Info(fmt.Sprintf(format, a...))
 	}
@@ -287,17 +276,16 @@ func (kl *Log) Infof(format string, a ...any) {
 
 // Warn record log with level [WARN]
 func (kl *Log) Warn(msg string, args ...any) {
-	if kl.logConfig.Source {
-		kl.logWithSource(context.Background(), slog.LevelWarn, msg, args...)
-	} else {
-		kl.logger.Warn(msg, args...)
+	if sourceArgs := addSource(kl, 1); sourceArgs != nil {
+		args = append(args, sourceArgs...)
 	}
+	kl.logger.Warn(msg, args...)
 }
 
 // Warnf record log with level [Warn]
 func (kl *Log) Warnf(format string, a ...any) {
-	if kl.logConfig.Source {
-		kl.logWithSource(context.Background(), slog.LevelWarn, fmt.Sprintf(format, a...))
+	if sourceArgs := addSource(kl, 1); sourceArgs != nil {
+		kl.logger.Warn(fmt.Sprintf(format, a...), sourceArgs...)
 	} else {
 		kl.logger.Warn(fmt.Sprintf(format, a...))
 	}
@@ -305,17 +293,16 @@ func (kl *Log) Warnf(format string, a ...any) {
 
 // Error record log with level [ERROR]
 func (kl *Log) Error(msg string, args ...any) {
-	if kl.logConfig.Source {
-		kl.logWithSource(context.Background(), slog.LevelError, msg, args...)
-	} else {
-		kl.logger.Error(msg, args...)
+	if sourceArgs := addSource(kl, 1); sourceArgs != nil {
+		args = append(args, sourceArgs...)
 	}
+	kl.logger.Error(msg, args...)
 }
 
 // Errorf record log with level [Error]
 func (kl *Log) Errorf(format string, a ...any) {
-	if kl.logConfig.Source {
-		kl.logWithSource(context.Background(), slog.LevelError, fmt.Sprintf(format, a...))
+	if sourceArgs := addSource(kl, 1); sourceArgs != nil {
+		kl.logger.Error(fmt.Sprintf(format, a...), sourceArgs...)
 	} else {
 		kl.logger.Error(fmt.Sprintf(format, a...))
 	}
@@ -430,97 +417,14 @@ func updateContextLogger(ctx *context.Context, logger *slog.Logger) {
 	*ctx = context.WithValue(*ctx, LoggerContextKey{}, logger)
 }
 
-// enhanceSourceInfo 增强source信息，添加多层调用栈
-func (kl *Log) enhanceSourceInfo(sourceAttr slog.Attr) slog.Attr {
-	// 获取多层调用栈信息
-	const maxFrames = 5
-	var pcs [maxFrames]uintptr
-	// 跳过更多层以到达实际的调用者
-	n := runtime.Callers(8, pcs[:])
-
-	if n == 0 {
-		return sourceAttr // 如果没有获取到调用栈，返回原始属性
+// addSource 记录带有正确调用栈信息的日志
+// skip: 跳过的调用层级数，用于正确定位到实际调用日志的位置
+// 返回包含源码信息的参数数组，而不是直接修改logger
+func addSource(logger *Log, skip int) []any {
+	if !logger.logConfig.Source {
+		return nil
 	}
-
-	frames := runtime.CallersFrames(pcs[:n])
-
-	// 构建调用栈数组
-	var stackFrames []any
-
-	// 添加当前调用者（第一层）
-	if sourceAttr.Value.Kind() == slog.KindGroup {
-		// 从原始source信息中提取当前调用者信息
-		currentFrame := make(map[string]any)
-		for _, attr := range sourceAttr.Value.Group() {
-			currentFrame[attr.Key] = attr.Value.Any()
-		}
-		stackFrames = append(stackFrames, currentFrame)
-	}
-
-	// 添加上层调用者
-	for i := 0; i < n && i < maxFrames-1; i++ {
-		frame, more := frames.Next()
-		frameInfo := map[string]any{
-			"function": frame.Function,
-			"file":     frame.File,
-			"line":     frame.Line,
-		}
-		stackFrames = append(stackFrames, frameInfo)
-		if !more {
-			break
-		}
-	}
-
-	return slog.Attr{
-		Key: "source",
-		Value: slog.GroupValue(
-			slog.Any("stack", stackFrames),
-		),
-	}
-}
-
-// logWithSource 记录带有正确调用栈信息的日志
-func (kl *Log) logWithSource(ctx context.Context, level slog.Level, msg string, args ...any) {
-	if !kl.logger.Enabled(ctx, level) {
-		return
-	}
-
-	// 获取多层调用栈信息，最多获取5层
-	const maxFrames = 5
-	var pcs [maxFrames]uintptr
-	// 获取调用者的程序计数器，跳过: runtime.Callers -> logWithSource -> InfoWithContext
-	n := runtime.Callers(3, pcs[:])
-
-	r := slog.NewRecord(time.Now(), level, msg, pcs[0])
-	r.Add(args...)
-
-	// 获取调用者信息
-	frames := runtime.CallersFrames(pcs[:n])
-
-	// 构建调用栈数组
-	var stackFrames []any
-
-	for i := 0; i < n && i < maxFrames; i++ {
-		frame, more := frames.Next()
-		frameInfo := map[string]any{
-			"function": frame.Function,
-			"file":     frame.File,
-			"line":     frame.Line,
-		}
-		stackFrames = append(stackFrames, frameInfo)
-		if !more {
-			break
-		}
-	}
-
-	// 添加调用栈信息
-	if len(stackFrames) > 0 {
-		r.AddAttrs(slog.Group("source",
-			slog.Any("stack", stackFrames),
-		))
-	}
-
-	// 获取context logger以包含额外的属性，但使用原始handler
-	logger := kl.contextLogger(&ctx)
-	logger.Handler().Handle(ctx, r)
+	frames := runtimetools.GetStackFrames(skip+1, 10)
+	return []any{"source", frames.String()}
+	return nil
 }
