@@ -171,7 +171,7 @@ func NewXLog(opts ...Option) *Log {
 			}
 			return a
 		},
-		AddSource: logger.logConfig.Source,
+		AddSource: false, // 我们手动处理source信息
 	}
 
 	var baseHandler slog.Handler
@@ -434,12 +434,23 @@ func (kl *Log) logWithSource(ctx context.Context, level slog.Level, msg string, 
 
 	var pc uintptr
 	var pcs [1]uintptr
-	// 获取调用者的程序计数器，跳过: runtime.Callers -> logWithSource -> InfoWithContext -> TestLogUtilForConcurrency
-	runtime.Callers(2, pcs[:])
+	// 获取调用者的程序计数器，跳过: runtime.Callers -> logWithSource -> InfoWithContext
+	runtime.Callers(3, pcs[:])
 	pc = pcs[0]
 
 	r := slog.NewRecord(time.Now(), level, msg, pc)
 	r.Add(args...)
+
+	// 获取调用者信息
+	frames := runtime.CallersFrames(pcs[:])
+	frame, _ := frames.Next()
+
+	// 手动添加 source 信息
+	r.AddAttrs(slog.Group("source",
+		slog.String("function", frame.Function),
+		slog.String("file", frame.File),
+		slog.Int("line", frame.Line),
+	))
 
 	// 如果有context logger，使用它；否则使用默认logger
 	logger := kl.contextLogger(&ctx)
