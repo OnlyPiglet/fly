@@ -63,3 +63,5 @@ func BytesToTiB(bytes int64) int64 {
 	output = output / TiB
 	return int64(output)
 }
+
+// 磁盘分区
