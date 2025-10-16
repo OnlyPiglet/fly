@@ -169,9 +169,13 @@ func NewXLog(opts ...Option) *Log {
 			if a.Key == slog.MessageKey && logger.logConfig.MessageKey != "" {
 				return slog.String(logger.logConfig.MessageKey, a.Value.String())
 			}
+			// 处理source信息，添加多层调用栈
+			if a.Key == slog.SourceKey && logger.logConfig.Source {
+				return logger.enhanceSourceInfo(a)
+			}
 			return a
 		},
-		AddSource: false, // 我们手动处理source信息
+		AddSource: false, // 使用我们自定义的多层调用栈实现
 	}
 
 	var baseHandler slog.Handler
@@ -426,31 +430,95 @@ func updateContextLogger(ctx *context.Context, logger *slog.Logger) {
 	*ctx = context.WithValue(*ctx, LoggerContextKey{}, logger)
 }
 
+// enhanceSourceInfo 增强source信息，添加多层调用栈
+func (kl *Log) enhanceSourceInfo(sourceAttr slog.Attr) slog.Attr {
+	// 获取多层调用栈信息
+	const maxFrames = 5
+	var pcs [maxFrames]uintptr
+	// 跳过更多层以到达实际的调用者
+	n := runtime.Callers(8, pcs[:])
+
+	if n == 0 {
+		return sourceAttr // 如果没有获取到调用栈，返回原始属性
+	}
+
+	frames := runtime.CallersFrames(pcs[:n])
+
+	// 构建调用栈数组
+	var stackFrames []any
+
+	// 添加当前调用者（第一层）
+	if sourceAttr.Value.Kind() == slog.KindGroup {
+		// 从原始source信息中提取当前调用者信息
+		currentFrame := make(map[string]any)
+		for _, attr := range sourceAttr.Value.Group() {
+			currentFrame[attr.Key] = attr.Value.Any()
+		}
+		stackFrames = append(stackFrames, currentFrame)
+	}
+
+	// 添加上层调用者
+	for i := 0; i < n && i < maxFrames-1; i++ {
+		frame, more := frames.Next()
+		frameInfo := map[string]any{
+			"function": frame.Function,
+			"file":     frame.File,
+			"line":     frame.Line,
+		}
+		stackFrames = append(stackFrames, frameInfo)
+		if !more {
+			break
+		}
+	}
+
+	return slog.Attr{
+		Key: "source",
+		Value: slog.GroupValue(
+			slog.Any("stack", stackFrames),
+		),
+	}
+}
+
 // logWithSource 记录带有正确调用栈信息的日志
 func (kl *Log) logWithSource(ctx context.Context, level slog.Level, msg string, args ...any) {
 	if !kl.logger.Enabled(ctx, level) {
 		return
 	}
 
-	var pc uintptr
-	var pcs [1]uintptr
+	// 获取多层调用栈信息，最多获取5层
+	const maxFrames = 5
+	var pcs [maxFrames]uintptr
 	// 获取调用者的程序计数器，跳过: runtime.Callers -> logWithSource -> InfoWithContext
-	runtime.Callers(3, pcs[:])
-	pc = pcs[0]
+	n := runtime.Callers(3, pcs[:])
 
-	r := slog.NewRecord(time.Now(), level, msg, pc)
+	r := slog.NewRecord(time.Now(), level, msg, pcs[0])
 	r.Add(args...)
 
 	// 获取调用者信息
-	frames := runtime.CallersFrames(pcs[:])
-	frame, _ := frames.Next()
+	frames := runtime.CallersFrames(pcs[:n])
 
-	// 手动添加 source 信息
-	r.AddAttrs(slog.Group("source",
-		slog.String("function", frame.Function),
-		slog.String("file", frame.File),
-		slog.Int("line", frame.Line),
-	))
+	// 构建调用栈数组
+	var stackFrames []any
+
+	for i := 0; i < n && i < maxFrames; i++ {
+		frame, more := frames.Next()
+		frameInfo := map[string]any{
+			"function": frame.Function,
+			"file":     frame.File,
+			"line":     frame.Line,
+		}
+		stackFrames = append(stackFrames, frameInfo)
+		if !more {
+			break
+		}
+	}
+
+	// 添加调用栈信息
+	if len(stackFrames) > 0 {
+		r.AddAttrs(slog.Group("source",
+			slog.Any("stack", stackFrames),
+		))
+	}
 
 	// 获取context logger以包含额外的属性，但使用原始handler
 	logger := kl.contextLogger(&ctx)
