@@ -7,9 +7,10 @@ import (
 )
 
 func TestLogUtilForConcurrency(t *testing.T) {
-	klog := NewXLog(WithLevel(INFO), WithLogFormat(JsonFormat), WithFileName("test.log"))
+	klog := NewXLog(WithLevel(INFO), WithLogFormat(JsonFormat), WithFileName("test.log"), WithSource(true), WithFileName("test.log"))
 	for i := 0; i < 10; i++ {
-		klog.AddAttrWithContext(context.Background(), "index", i)
+		withContext := klog.AddAttrWithContext(context.Background(), "index", i)
+		klog.InfoWithContext(withContext, "asd")
 	}
 }
 
