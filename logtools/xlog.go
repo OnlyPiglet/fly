@@ -415,7 +415,7 @@ func (kl *Log) preStop() {
 func (kl *Log) contextLogger(ctx *context.Context) *slog.Logger {
 	logger, ok := (*ctx).Value(LoggerContextKey{}).(*slog.Logger)
 	if !ok {
-		logger = kl.logger.With(slog.Group(""))
+		logger = kl.logger
 		updateContextLogger(ctx, logger)
 	}
 	return logger
@@ -452,7 +452,7 @@ func (kl *Log) logWithSource(ctx context.Context, level slog.Level, msg string, 
 		slog.Int("line", frame.Line),
 	))
 
-	// 如果有context logger，使用它；否则使用默认logger
+	// 获取context logger以包含额外的属性，但使用原始handler
 	logger := kl.contextLogger(&ctx)
 	logger.Handler().Handle(ctx, r)
 }
