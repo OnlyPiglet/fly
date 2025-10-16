@@ -100,6 +100,12 @@ func WithMessageKey(messageKey string) Option {
 	}
 }
 
+func WithSource(source bool) Option {
+	return func(kc *LogConfig) {
+		kc.Source = source
+	}
+}
+
 type Option func(c *LogConfig)
 
 // NewXLog create NewXLog with Option, creates a new instance each time
@@ -118,6 +124,7 @@ func NewXLog(opts ...Option) *Log {
 		TimeFormat: defaultKeLogConfig.TimeFormat,
 		MessageKey: defaultKeLogConfig.MessageKey,
 		Fields:     make(map[string]interface{}),
+		Source:     defaultKeLogConfig.Source,
 	}
 
 	logger := &Log{
@@ -162,6 +169,7 @@ func NewXLog(opts ...Option) *Log {
 			}
 			return a
 		},
+		AddSource: logger.logConfig.Source,
 	}
 
 	var baseHandler slog.Handler
@@ -276,6 +284,7 @@ var defaultKeLogConfig = LogConfig{
 	LogFormat:  JsonFormat,
 	TimeFormat: "", // 空字符串表示使用slog默认时间格式
 	MessageKey: "", // 空字符串表示使用slog默认消息key "msg"
+	Source:     false,
 }
 
 var Logger *Log
@@ -295,6 +304,7 @@ type LogConfig struct {
 	Fields        map[string]interface{}
 	TimeFormat    string // 时间格式化字符串，如 "2006-01-02 15:04:05"
 	MessageKey    string // 消息体的key，默认为 "msg"
+	Source        bool   //是否添加日志文件和行数
 }
 
 type LogFileConfig struct {
