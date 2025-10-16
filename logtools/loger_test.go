@@ -22,7 +22,7 @@ func AddLogRecord(ctx context.Context, klog *Log, traceId string) {
 }
 
 func TestLogUtil(t *testing.T) {
-	klog := NewXLog(WithLevel(INFO), WithLogFormat(JsonFormat), WithFileName("test.log"))
+	klog := NewXLog(WithLevel(INFO), WithLogFormat(JsonFormat), WithFileName("test.log"), WithSource(true))
 	klog.AddAttrs("traceId", "123456")
 	klog.Debug("greeting", "name", "tony")
 	klog.Info("greeting", "name", "tony")
@@ -44,6 +44,7 @@ func TestLogUtilWithFields(t *testing.T) {
 		WithLogFormat(JsonFormat),
 		WithFileName("test_with_fields.log"),
 		WithFields(fields),
+		WithSource(true),
 	)
 
 	// 测试各种日志级别，预设字段应该自动包含在每条日志中
