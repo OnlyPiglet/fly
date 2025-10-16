@@ -59,3 +59,25 @@ func TestLogUtilWithFields(t *testing.T) {
 
 	klog.Close()
 }
+
+func TestMultiStack(t *testing.T) {
+	klog := NewXLog(
+		WithLevel(INFO),
+		WithLogFormat(JsonFormat),
+		WithFileName("multistack.log"),
+		WithSource(true),
+	)
+	stack1(klog)
+}
+
+func stack1(log *Log) {
+	stack2(log)
+}
+
+func stack2(log *Log) {
+	stack3(log)
+}
+
+func stack3(log *Log) {
+	log.Infof("sssss")
+}
