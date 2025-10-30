@@ -13,6 +13,19 @@ func CalculateChecksum(data []byte) int {
 	return sum & 0xFF
 }
 
+func BcdBytesToNumberHexString(bcd []byte) string {
+	// 打印BCD字节数组为十六进制字符串
+	return BcdBytesToNumberString(bcd)
+	//result := ""
+	//for _, b := range bcd {
+	//	r, ok := bcdToStringMap[b]
+	//	if ok {
+	//		result += r
+	//	}
+	//}
+	//return result
+}
+
 // BcdBytesToNumberString 字节数组 [0x12,0x34,0x56,0x78] -> "12345678"
 func BcdBytesToNumberString(bcd []byte) string {
 	// 打印BCD字节数组为十六进制字符串

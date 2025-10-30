@@ -83,3 +83,37 @@ func TestTwoFrameDecode(t *testing.T) {
 		}
 	}
 }
+
+type LXFrameDecoder struct {
+}
+
+func (d *LXFrameDecoder) GetConfig() FrameConfig {
+	return FrameConfig{
+		StartBytes:             []byte{0x70},
+		EndBytes:               []byte{0x20},
+		ByteOrder:              binary.LittleEndian,
+		FrameLengthOffset:      1,  //长度的index
+		FrameLengthSize:        2,  // 长度的字节长度
+		FrameTotalLengthAdjust: 8,  // 起始2字节 + 长度2字节
+		ChecksumIndex:          -2, // checksum在frame中的起始位置，需要根据实际协议设置
+		ChecksumSize:           1,
+	}
+}
+
+func (d *LXFrameDecoder) ValidateChecksum(frame Frame) bool {
+	return true
+}
+
+func TestLXFrameDecoder(t *testing.T) {
+	tcpc, err := net.ListenTCP("tcp", &net.TCPAddr{IP: net.ParseIP("0.0.0.0"), Port: 2223})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for {
+		cc, _ := tcpc.Accept()
+		err := DecodeFrames(cc.(*net.TCPConn), new(LXFrameDecoder), 1024, HandlerFrame)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+}
