@@ -183,6 +183,10 @@ func NewCacheBuilder[K Key, V any](directFunc DirectFunc[K, V], optFuncs ...Cach
 	return cb, nil
 }
 
+func (xc *XCache[K, V]) Set(ctx context.Context, key K, v V) error {
+	return xc.put(ctx, key, v)
+}
+
 func (xc *XCache[K, V]) Get(ctx context.Context, key K) (V, error) {
 	if xc.L1Enable {
 		if v, ok := xc.L1CacheClient.Get(key); ok {
