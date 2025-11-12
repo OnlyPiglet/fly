@@ -25,7 +25,7 @@ func TestXCache_L1Only(t *testing.T) {
 		if keyStr == "error" {
 			return TestUser{}, errors.New("user not found")
 		}
-		
+
 		// 模拟从数据库查询
 		return TestUser{
 			ID:   1,
@@ -73,7 +73,7 @@ func TestXCache_L1AndL2(t *testing.T) {
 	directFunc := func(ctx context.Context, key StringKey) (TestUser, error) {
 		callCount++
 		t.Logf("directFunc 被调用（第 %d 次）", callCount)
-		
+
 		return TestUser{
 			ID:   callCount,
 			Name: "User_" + key.ToString(),
@@ -85,7 +85,7 @@ func TestXCache_L1AndL2(t *testing.T) {
 	cache, err := NewCacheBuilder(
 		directFunc,
 		WithPrefixKey("user"),
-		WithL1Cache(true, 1000, 3*time.Second),  // L1: 3秒过期
+		WithL1Cache(true, 1000, 3*time.Second), // L1: 3秒过期
 		WithL2Cache(true, &redis.Options{
 			Addr: "127.0.0.1:6379",
 			DB:   0,
@@ -283,59 +283,58 @@ func TestXCache_ErrorHandling(t *testing.T) {
 	}
 }
 
-// Example 6: 完整示例 - 用户查询场景
-func ExampleXCache_UserQuery() {
-	// 模拟数据库
-	database := map[string]TestUser{
-		"user:1": {ID: 1, Name: "Alice", Age: 28},
-		"user:2": {ID: 2, Name: "Bob", Age: 32},
-		"user:3": {ID: 3, Name: "Charlie", Age: 25},
-	}
-
-	// L3 直接获取函数（从数据库查询）
-	directFunc := func(ctx context.Context, key StringKey) (TestUser, error) {
-		keyStr := key.ToString()
-		fmt.Printf("[DB查询] 查询用户: %s\n", keyStr)
-		
-		user, ok := database[keyStr]
-		if !ok {
-			return TestUser{}, fmt.Errorf("user not found: %s", keyStr)
-		}
-		return user, nil
-	}
-
-	// 创建多级缓存
-	cache, err := NewCacheBuilder(
-		directFunc,
-		WithPrefixKey("user"),
-		WithL1Cache(true, 1000, 5*time.Minute),
-		// 如果有 Redis，可以取消下面的注释
-		// WithL2Cache(true, &redis.Options{Addr: "127.0.0.1:6379"}, 10*time.Minute),
-	)
-	if err != nil {
-		fmt.Printf("创建缓存失败: %v\n", err)
-		return
-	}
-
-	ctx := context.Background()
-
-	// 查询用户（第一次，缓存未命中）
-	user1, _ := cache.Get(ctx, StringKey("user:1"))
-	fmt.Printf("获取用户 1: %+v\n", user1)
-
-	// 再次查询（命中 L1 缓存）
-	user1Again, _ := cache.Get(ctx, StringKey("user:1"))
-	fmt.Printf("再次获取用户 1: %+v\n", user1Again)
-
-	// 查询其他用户
-	user2, _ := cache.Get(ctx, StringKey("user:2"))
-	fmt.Printf("获取用户 2: %+v\n", user2)
-
-	// 查看缓存统计
-	stats := cache.L1CacheClient.Stats()
-	fmt.Printf("\n缓存统计:\n")
-	fmt.Printf("  命中数: %d\n", stats.Hits())
-	fmt.Printf("  未命中数: %d\n", stats.Misses())
-	fmt.Printf("  命中率: %.2f%%\n", stats.Ratio()*100)
-}
-
+//// Example 6: 完整示例 - 用户查询场景
+//func ExampleXCache_UserQuery() {
+//	// 模拟数据库
+//	database := map[string]TestUser{
+//		"user:1": {ID: 1, Name: "Alice", Age: 28},
+//		"user:2": {ID: 2, Name: "Bob", Age: 32},
+//		"user:3": {ID: 3, Name: "Charlie", Age: 25},
+//	}
+//
+//	// L3 直接获取函数（从数据库查询）
+//	directFunc := func(ctx context.Context, key StringKey) (TestUser, error) {
+//		keyStr := key.ToString()
+//		fmt.Printf("[DB查询] 查询用户: %v\n", keyStr)
+//
+//		user, ok := database[keyStr]
+//		if !ok {
+//			return TestUser{}, fmt.Errorf("user not found: %s", keyStr)
+//		}
+//		return user, nil
+//	}
+//
+//	// 创建多级缓存
+//	cache, err := NewCacheBuilder(
+//		directFunc,
+//		WithPrefixKey("user"),
+//		WithL1Cache(true, 1000, 5*time.Minute),
+//		// 如果有 Redis，可以取消下面的注释
+//		// WithL2Cache(true, &redis.Options{Addr: "127.0.0.1:6379"}, 10*time.Minute),
+//	)
+//	if err != nil {
+//		fmt.Printf("创建缓存失败: %v\n", err)
+//		return
+//	}
+//
+//	ctx := context.Background()
+//
+//	// 查询用户（第一次，缓存未命中）
+//	user1, _ := cache.Get(ctx, StringKey("user:1"))
+//	fmt.Printf("获取用户 1: %+v\n", user1)
+//
+//	// 再次查询（命中 L1 缓存）
+//	user1Again, _ := cache.Get(ctx, StringKey("user:1"))
+//	fmt.Printf("再次获取用户 1: %+v\n", user1Again)
+//
+//	// 查询其他用户
+//	user2, _ := cache.Get(ctx, StringKey("user:2"))
+//	fmt.Printf("获取用户 2: %+v\n", user2)
+//
+//	// 查看缓存统计
+//	stats := cache.L1CacheClient.Stats()
+//	fmt.Printf("\n缓存统计:\n")
+//	fmt.Printf("  命中数: %d\n", stats.Hits())
+//	fmt.Printf("  未命中数: %d\n", stats.Misses())
+//	fmt.Printf("  命中率: %.2f%%\n", stats.Ratio()*100)
+//}
