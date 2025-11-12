@@ -190,7 +190,7 @@ func (xc *XCache[K, V]) Set(ctx context.Context, key K, v V) error {
 func (xc *XCache[K, V]) Get(ctx context.Context, key K) (V, error) {
 	if xc.L1Enable {
 		if v, ok := xc.L1CacheClient.Get(key); ok {
-			slog.Debug(fmt.Sprintf("get key %s from l1 cache", key))
+			slog.Debug(fmt.Sprintf("get key %v from l1 cache", key))
 			return v, nil
 		}
 	}
@@ -202,7 +202,7 @@ func (xc *XCache[K, V]) Get(ctx context.Context, key K) (V, error) {
 			if em != nil {
 				slog.Error("cache error", "operation", "l2_unmarshal", "error", em.Error())
 			} else {
-				slog.Debug(fmt.Sprintf("get key %s from l2 cache", key))
+				slog.Debug(fmt.Sprintf("get key %v from l2 cache", key))
 				if xc.L1Enable {
 					go func() {
 						xc.L1CacheClient.Set(key, *v)
@@ -218,7 +218,7 @@ func (xc *XCache[K, V]) Get(ctx context.Context, key K) (V, error) {
 
 func (xc *XCache[K, V]) getFromL3WithSingleFlight(ctx context.Context, key K) (V, error) {
 
-	slog.Debug(fmt.Sprintf("get key %s from L3 directFunc", key))
+	slog.Debug(fmt.Sprintf("get key %v from L3 directFunc", key))
 
 	v, err, shared := xc.flightGroup.Do(key.ToString(), func() (interface{}, error) {
 		value, err := xc.L3DirectFunc(ctx, key)
@@ -236,7 +236,7 @@ func (xc *XCache[K, V]) getFromL3WithSingleFlight(ctx context.Context, key K) (V
 		return value, nil
 	})
 	if shared {
-		slog.Debug(fmt.Sprintf("key %s result shared from singleflight", key))
+		slog.Debug(fmt.Sprintf("key %v result shared from singleflight", key))
 	}
 	return v.(V), err
 }
