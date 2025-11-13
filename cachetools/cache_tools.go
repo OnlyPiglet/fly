@@ -70,6 +70,7 @@ type CacheOption struct {
 	L2Config            *redis.Options
 	L2CacheTTL          time.Duration
 	L3FlightErrContinue bool
+	L2RedisClient       *redis.Client
 }
 
 // CacheOptionFunc defines a function type for configuring CacheOption
@@ -114,6 +115,11 @@ func WithL3FlightErrContinue(con bool) CacheOptionFunc {
 		opt.L3FlightErrContinue = con
 	}
 }
+func WithL2RedisClient(client *redis.Client) CacheOptionFunc {
+	return func(opt *CacheOption) {
+		opt.L2RedisClient = client
+	}
+}
 
 func NewCacheBuilder[K Key, V any](directFunc DirectFunc[K, V], optFuncs ...CacheOptionFunc) (*XCache[K, V], error) {
 	// Initialize default options
@@ -154,6 +160,9 @@ func NewCacheBuilder[K Key, V any](directFunc DirectFunc[K, V], optFuncs ...Cach
 	cb.flightGroup = &singleflight.Group{}
 	cb.L3FlightErrContinue = opt.L3FlightErrContinue
 	cb.L1ExpireReload = opt.L1ExpireReload
+	if opt.L2RedisClient != nil {
+		cb.L2RedisClient = opt.L2RedisClient
+	}
 
 	if opt.L1Enable {
 		cache, err := otter.MustBuilder[K, V](opt.Capacity).
@@ -174,10 +183,12 @@ func NewCacheBuilder[K Key, V any](directFunc DirectFunc[K, V], optFuncs ...Cach
 		cb.L1CacheClient = cache
 	}
 	if opt.L2Enable {
-		if opt.L2Config == nil {
+		if cb.L2RedisClient == nil && opt.L2Config == nil {
 			return nil, fmt.Errorf("error: l2 cache is enabled but Redis config is not provided")
 		}
-		cb.L2RedisClient = redis.NewClient(opt.L2Config)
+		if cb.L2RedisClient == nil {
+			cb.L2RedisClient = redis.NewClient(opt.L2Config)
+		}
 	}
 
 	return cb, nil
