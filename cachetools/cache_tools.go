@@ -252,6 +252,22 @@ func (xc *XCache[K, V]) getFromL3WithSingleFlight(ctx context.Context, key K) (V
 	return v.(V), err
 }
 
+func (xc *XCache[K, V]) Delete(ctx context.Context, key K) error {
+	if !xc.L1Enable && !xc.L2Enable {
+		return nil
+	}
+	if xc.L1Enable {
+		xc.L1CacheClient.Delete(key)
+	}
+	if xc.L2Enable {
+		_, err := xc.L2RedisClient.Del(ctx, xc.redisCacheKey(key)).Result()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (xc *XCache[K, V]) put(ctx context.Context, key K, v V) error {
 
 	if !xc.L1Enable && !xc.L2Enable {
