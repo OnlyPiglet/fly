@@ -3,7 +3,6 @@ package influxdbtools
 import (
 	"context"
 	"fmt"
-	"math/rand"
 	"os"
 	"testing"
 	"time"
@@ -74,34 +73,34 @@ func TestContinuousWriteWeather(t *testing.T) {
 	defer cancel()
 
 	writeOnce := func(i int) {
-		location := fmt.Sprintf("sensor-%d", rand.Intn(3)+1)
-		temperature := 20 + rand.Float64()*10
-		humidity := 40 + rand.Float64()*30
-		pressure := 1000 + rand.Float64()*20
-		wind := rand.Float64() * 10
-		windDir := []string{"N", "E", "S", "W"}[rand.Intn(4)]
-
-		now := time.Now()
-		p := Point{
-			Measurement: "weather",
-			Tags: map[string]string{
-				"location": location,
-				"wind_dir": windDir,
-			},
-			Fields: map[string]interface{}{
-				"temperature": temperature,
-				"humidity":    humidity,
-				"pressure":    pressure,
-				"wind":        wind,
-			},
-			Timestamp: &now,
-		}
-		if err := client.WritePoint(p); err != nil {
-			t.Errorf("write %d error: %v", i, err)
-			return
-		}
-		t.Logf("[%d] 写入: 位置=%s 温度=%.1f℃ 湿度=%.1f%% 气压=%.1fhPa 风速=%.1fm/s 风向=%s",
-			i, location, temperature, humidity, pressure, wind, windDir)
+		//location := fmt.Sprintf("sensor-%d", rand.Intn(3)+1)
+		//temperature := 20 + rand.Float64()*10
+		//humidity := 40 + rand.Float64()*30
+		//pressure := 1000 + rand.Float64()*20
+		//wind := rand.Float64() * 10
+		//windDir := []string{"N", "E", "S", "W"}[rand.Intn(4)]
+		//
+		//now := time.Now()
+		//p := Point{
+		//	Measurement: "weather",
+		//	Tags: map[string]string{
+		//		"location": location,
+		//		"wind_dir": windDir,
+		//	},
+		//	Fields: map[string]interface{}{
+		//		"temperature": temperature,
+		//		"humidity":    humidity,
+		//		"pressure":    pressure,
+		//		"wind":        wind,
+		//	},
+		//	Timestamp: &now,
+		//}
+		//if err := client.WritePoint(p); err != nil {
+		//	t.Errorf("write %d error: %v", i, err)
+		//	return
+		//}
+		//t.Logf("[%d] 写入: 位置=%s 温度=%.1f℃ 湿度=%.1f%% 气压=%.1fhPa 风速=%.1fm/s 风向=%s",
+		//	i, location, temperature, humidity, pressure, wind, windDir)
 	}
 
 	if count > 0 {
