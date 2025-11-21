@@ -56,12 +56,13 @@ func Init(dsn string, opts ...Option) (*redis.Client, error) {
 }
 
 // InitSingle connecting to single redis instance
-func InitSingle(addr string, password string, db int, opts ...Option) (*redis.Client, error) {
+func InitSingle(addr string, username, password string, db int, opts ...Option) (*redis.Client, error) {
 	o := defaultOptions()
 	o.apply(opts...)
 
 	opt := &redis.Options{
 		Addr:         addr,
+		Username:     username,
 		Password:     password,
 		DB:           db,
 		DialTimeout:  o.dialTimeout,
