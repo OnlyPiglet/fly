@@ -143,7 +143,7 @@ func (r RedisQueue[V]) Dequeue() (V, error) {
 // 返回实际取出的元素数量和可能的错误
 func (r RedisQueue[V]) DequeueBatch(count int) ([]V, error) {
 	if count <= 0 {
-		return nil, nil
+		return make([]V, 0), nil
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), r.timeout)

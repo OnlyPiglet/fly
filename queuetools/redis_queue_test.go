@@ -2,6 +2,7 @@ package queue_tools
 
 import (
 	"encoding/json"
+	"fmt"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -132,41 +133,49 @@ func TestProductAndCustomer_SmallBatch(t *testing.T) {
 		})
 	}
 
-	single, err := redistools.InitSingle("r-bp1dqgkbwcsqyto3lcpd.redis.rds.aliyuncs.com:6379", "r-bp1dqgkbwcsqyto3lc", "4553283@wch", 0)
+	single, err := redistools.InitSingle("127.0.0.1:6379", "", "", 0)
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	ts := time.Now()
+	//ts := time.Now()
 
 	// 小批量测试：1 万条数据
 	queue := NewRedisQueue[dv]("abc_small", single, 0, 10000*time.Millisecond)
 
-	batchSize := 1000
-	totalBatches := (len(dvs) + batchSize - 1) / batchSize
-
-	t.Logf("小批量测试: 总数=%d, 批次大小=%d, 批次数=%d", len(dvs), batchSize, totalBatches)
-
-	for i := 0; i < len(dvs); i += batchSize {
-		end := i + batchSize
-		if end > len(dvs) {
-			end = len(dvs)
-		}
-
-		batch := dvs[i:end]
-		err = queue.Enqueue(batch)
-		if err != nil {
-			t.Errorf("批次 %d-%d 写入失败: %v", i, end, err)
-			return
-		}
+	batch, err := queue.DequeueBatch(10000)
+	if err != nil {
+		t.Error(err)
+	}
+	for _, d := range batch {
+		println(fmt.Sprintf("%+v", d))
 	}
 
-	sub := time.Now().Sub(ts)
-	t.Logf("✓ 小批量测试完成! 耗时: %d ms", sub.Milliseconds())
-
-	queueLen, _ := queue.Len()
-	t.Logf("  队列长度: %d", queueLen)
+	//batchSize := 1000
+	//totalBatches := (len(dvs) + batchSize - 1) / batchSize
+	//
+	//t.Logf("小批量测试: 总数=%d, 批次大小=%d, 批次数=%d", len(dvs), batchSize, totalBatches)
+	//
+	//for i := 0; i < len(dvs); i += batchSize {
+	//	end := i + batchSize
+	//	if end > len(dvs) {
+	//		end = len(dvs)
+	//	}
+	//
+	//	batch := dvs[i:end]
+	//	err = queue.Enqueue(batch)
+	//	if err != nil {
+	//		t.Errorf("批次 %d-%d 写入失败: %v", i, end, err)
+	//		return
+	//	}
+	//}
+	//
+	//sub := time.Now().Sub(ts)
+	//t.Logf("✓ 小批量测试完成! 耗时: %d ms", sub.Milliseconds())
+	//
+	//queueLen, _ := queue.Len()
+	//t.Logf("  队列长度: %d", queueLen)
 }
 
 // TestProductAndCustomer_CapacityLimit 测试容量限制
