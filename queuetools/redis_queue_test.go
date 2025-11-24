@@ -1,4 +1,4 @@
-package queue
+package queue_tools
 
 import (
 	"encoding/json"
