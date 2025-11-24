@@ -223,7 +223,7 @@ func TestProductAndCustomer_CapacityLimit(t *testing.T) {
 // 场景：多个生产者并发写入，持续10分钟，每5秒写入一批，观察Redis性能
 func TestConcurrentWrite_PressureTest(t *testing.T) {
 	// 使用本地 Redis（改为远程地址测试远程 Redis）
-	single, err := redistools.InitSingle("r-bp1dqgkbwcsqyto3lcpd.redis.rds.aliyuncs.com:6379", "r-bp1dqgkbwcsqyto3lc", "4553283@wch", 0)
+	single, err := redistools.InitSingle("127.0.0.1:6379", "", "", 0)
 	if err != nil {
 		t.Error(err)
 		return
@@ -231,26 +231,30 @@ func TestConcurrentWrite_PressureTest(t *testing.T) {
 
 	// 配置参数
 	const (
-		numWorkers      = 10               // 并发写入的 worker 数量
-		numConsumers    = 10               // 并发消费者数量（建议与生产者数量相当）
-		batchSize       = 1000             // 每批写入的数据量
-		writeInterval   = 5 * time.Second  // 每 5 秒写入一次
-		testDuration    = 10 * time.Minute // 持续 10 分钟
-		queueCapacity   = 0                // 无容量限制
-		redisTimeout    = 30 * time.Second // Redis 操作超时
-		consumeLogEvery = 10000            // 每消费多少条打印一次日志
+		numWorkers       = 10               // 并发写入的 worker 数量
+		numConsumers     = 10               // 并发消费者数量（建议与生产者数量相当）
+		batchSize        = 1000             // 每批写入的数据量
+		consumeBatchSize = 100              // 每次批量消费的数据量 ⚡
+		writeInterval    = 5 * time.Second  // 每 5 秒写入一次
+		testDuration     = 10 * time.Minute // 持续 10 分钟
+		queueCapacity    = 0                // 无容量限制
+		redisTimeout     = 30 * time.Second // Redis 操作超时
+		consumeLogEvery  = 10000            // 每消费多少条打印一次日志
 	)
 
-	t.Logf("=== 并发写入压力测试配置 ===")
-	t.Logf("  并发生产者数: %d", numWorkers)
-	t.Logf("  并发消费者数: %d", numConsumers)
-	t.Logf("  每批数据量: %d 条", batchSize)
-	t.Logf("  写入间隔: %s", writeInterval)
-	t.Logf("  测试时长: %s", testDuration)
-	t.Logf("  队列容量: %d (0=无限制)", queueCapacity)
+	t.Logf("=== 🚀 批量消费压力测试配置 ===")
+	t.Logf("  ⚙️  生产配置:")
+	t.Logf("     - 生产者数量: %d", numWorkers)
+	t.Logf("     - 生产批次: %d 条/批", batchSize)
+	t.Logf("     - 写入间隔: %s", writeInterval)
+	t.Logf("  ⚡ 消费配置 (批量模式):")
+	t.Logf("     - 消费者数量: %d", numConsumers)
+	t.Logf("     - 消费批次: %d 条/批 ← 关键优化！", consumeBatchSize)
+	t.Logf("  📊 预测:")
 	expectedTotal := numWorkers * batchSize * int(testDuration/writeInterval)
-	t.Logf("  理论总写入量: %d 条/10分钟", expectedTotal)
-	t.Logf("  消费日志频率: 每 %d 条", consumeLogEvery)
+	t.Logf("     - 理论生产: %d 条/10分钟 (~%.0f 条/秒)", expectedTotal, float64(numWorkers*batchSize)/writeInterval.Seconds())
+	t.Logf("     - 理论消费: ~%d 条/秒 (单次批量×消费者数)", numConsumers*consumeBatchSize*10) // 假设每次10ms
+	t.Logf("  ⏱️  测试时长: %s", testDuration)
 	t.Logf("")
 
 	// 创建队列
@@ -293,8 +297,8 @@ func TestConcurrentWrite_PressureTest(t *testing.T) {
 	consumerDoneChan := make(chan bool, numConsumers)
 	doneChan := make(chan int, numWorkers)
 
-	// 启动多个消费者协程
-	t.Logf("🔄 启动 %d 个消费者协程...", numConsumers)
+	// 启动多个批量消费者协程
+	t.Logf("🔄 启动 %d 个批量消费者协程（每次消费 %d 条）...\n", numConsumers, consumeBatchSize)
 	for consumerID := 0; consumerID < numConsumers; consumerID++ {
 		go func(id int) {
 			defer func() {
@@ -302,36 +306,44 @@ func TestConcurrentWrite_PressureTest(t *testing.T) {
 			}()
 
 			consecutiveErrors := 0
-			maxConsecutiveErrors := 10 // 连续失败10次后，暂停一下
+			maxConsecutiveErrors := 5 // 连续失败5次后，暂停一下
+			localConsumeCount := int64(0)
+			localBatchCount := int64(0)
 
 			for {
 				select {
 				case <-consumerStopChan:
-					t.Logf("🛑 消费者-%d 收到停止信号", id)
+					t.Logf("🛑 消费者-%d 停止 | 本地消费: %d 条 (分 %d 批)", id, localConsumeCount, localBatchCount)
 					return
 				default:
-					// 尝试从队列消费
-					item, err := queue.Dequeue()
-					if err != nil {
+					// 批量消费 - 每次尝试消费 consumeBatchSize 条
+					items, err := queue.DequeueBatch(consumeBatchSize)
+					if err != nil || len(items) == 0 {
 						// 队列为空或其他错误
 						consecutiveErrors++
-						atomic.AddInt64(&consumerErrors, 1)
+						if err != nil {
+							atomic.AddInt64(&consumerErrors, 1)
+						}
 
 						// 如果连续失败多次，说明队列可能长时间为空，稍微休息一下
 						if consecutiveErrors >= maxConsecutiveErrors {
-							time.Sleep(100 * time.Millisecond)
+							time.Sleep(50 * time.Millisecond) // 批量消费时可以更频繁重试
 							consecutiveErrors = 0
 						}
 						continue
 					}
 
-					// 消费成功
+					// 批量消费成功
 					consecutiveErrors = 0
-					count := atomic.AddInt64(&consumerCount, 1)
+					batchCount := int64(len(items))
+					localConsumeCount += batchCount
+					localBatchCount++
+					totalCount := atomic.AddInt64(&consumerCount, batchCount)
 
 					// 只打印内容，不做任何处理（按配置的频率打印日志）
-					if count%int64(consumeLogEvery) == 0 {
-						t.Logf("🍽️  [消费者-%d] 已消费 %d 条数据 | 最新数据: %s", id, count, item.Abcdefgh)
+					if totalCount%int64(consumeLogEvery) < batchCount || totalCount == batchCount {
+						t.Logf("⚡ [消费者-%d] 批量: %d条 | 累计: %d条 | 数据: %s",
+							id, batchCount, totalCount, items[0].Abcdefgh)
 					}
 				}
 			}
@@ -384,12 +396,18 @@ func TestConcurrentWrite_PressureTest(t *testing.T) {
 				if totalWrites > 0 {
 					t.Logf("     - 成功率: %.2f%%", float64(successWrites)*100/float64(totalWrites))
 				}
-				t.Logf("  🍽️  消费者统计:")
+				t.Logf("  🍽️  消费者统计 (批量模式 %d条/次):", consumeBatchSize)
 				t.Logf("     - 已消费: %d 条", currentConsumerCount)
-				t.Logf("     - 消费速度: %.0f 条/秒", float64(currentConsumerCount)/elapsed.Seconds())
-				t.Logf("     - 消费错误: %d 次", currentConsumerErrors)
+				t.Logf("     - 消费速度: %.0f 条/秒 ⚡", float64(currentConsumerCount)/elapsed.Seconds())
+				t.Logf("     - 消费错误: %d 次 (空队列尝试)", currentConsumerErrors)
 				if totalRecords > 0 {
-					t.Logf("     - 消费进度: %.2f%%", float64(currentConsumerCount)*100/float64(totalRecords))
+					consumeRatio := float64(currentConsumerCount) / float64(totalRecords) * 100
+					t.Logf("     - 消费进度: %.2f%%", consumeRatio)
+					produceSpeed := float64(totalRecords) / elapsed.Seconds()
+					consumeSpeed := float64(currentConsumerCount) / elapsed.Seconds()
+					if produceSpeed > 0 {
+						t.Logf("     - 消费/生产比: %.2f%% (>100%%为消费快)", consumeSpeed/produceSpeed*100)
+					}
 				}
 				t.Logf("  ⚡ 性能指标:")
 				t.Logf("     - 生产速度: %.0f 条/秒", float64(totalRecords)/elapsed.Seconds())
@@ -641,11 +659,11 @@ func TestConcurrentWrite_BatchConsume(t *testing.T) {
 
 	const (
 		numWorkers       = 10
-		numConsumers     = 5                // 批量消费可以用更少的消费者
+		numConsumers     = 5 // 批量消费可以用更少的消费者
 		batchSize        = 1000
-		consumeBatchSize = 100              // 每次批量消费100条
+		consumeBatchSize = 100 // 每次批量消费100条
 		writeInterval    = 5 * time.Second
-		testDuration     = 2 * time.Minute  // 2分钟测试
+		testDuration     = 2 * time.Minute // 2分钟测试
 	)
 
 	t.Logf("=== 批量消费压力测试配置 ===")
