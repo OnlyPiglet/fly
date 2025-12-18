@@ -62,27 +62,3 @@ func getCachedLocation(timezone string) (*time.Location, error) {
 	locationCache[timezone] = loc
 	return loc, nil
 }
-
-func main() {
-	// 性能测试
-	start := time.Now()
-	const iterations = 10000
-
-	for i := 0; i < iterations; i++ {
-		_, _, _ = GetCurrentTimeInTimezone("America/New_York")
-	}
-
-	elapsed := time.Since(start)
-	fmt.Printf("执行 %d 次转换耗时: %s (平均 %.2f μs/次)\n",
-		iterations, elapsed, float64(elapsed.Microseconds())/iterations)
-
-	// 示例用法
-	timeStr, timezone, err := GetCurrentTimeInTimezone("Asia/Shanghai")
-	if err != nil {
-		fmt.Println("错误:", err)
-		return
-	}
-
-	fmt.Printf("当前UTC时间: %s\n", time.Now().UTC().Format("2006-01-02 15:04:05 MST"))
-	fmt.Printf("上海时间: %s %s\n", timeStr, timezone)
-}
