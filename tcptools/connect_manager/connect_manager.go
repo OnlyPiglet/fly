@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/OnlyPiglet/fly/logtools"
 	"net"
 	"sync"
 	"sync/atomic"
@@ -54,7 +55,6 @@ func (c *ConnContext) Touch() {
 	c.state.Store(int32(StateActive))
 }
 
-// LastActiveTime 返回最近活跃时间
 func (c *ConnContext) LastActiveTime() time.Time {
 	n := c.lastActive.Load()
 	if n == 0 {
@@ -127,6 +127,7 @@ type Server struct {
 	reapTick    time.Duration
 
 	handler Handler
+	logger  *logtools.Log
 
 	mu    sync.Mutex
 	conns map[string]*ConnContext
@@ -163,6 +164,11 @@ func WithHandler(h Handler) Option {
 	return func(s *Server) { s.handler = h }
 }
 
+// 外部注入 logger（推荐）
+func WithLogger(l *logtools.Log) Option {
+	return func(s *Server) { s.logger = l }
+}
+
 // ======================
 // New
 // ======================
@@ -178,11 +184,14 @@ func New(addr string, opts ...Option) *Server {
 		conns:       make(map[string]*ConnContext),
 		ctx:         ctx,
 		cancel:      cancel,
+		logger:      logtools.NewLog(), // fallback
 	}
 
 	for _, opt := range opts {
 		opt(s)
 	}
+
+	s.logger.AddAttrs("component", "connect_manager", "addr", addr)
 	return s
 }
 
@@ -197,6 +206,12 @@ func (s *Server) Start() error {
 	}
 	s.ln = ln
 
+	s.logger.Info("server started",
+		"maxConn", s.maxConn,
+		"idleTimeout", s.idleTimeout.String(),
+		"reapTick", s.reapTick.String(),
+	)
+
 	s.wg.Add(2)
 	go s.acceptLoop()
 	go s.idleReaper()
@@ -205,6 +220,8 @@ func (s *Server) Start() error {
 }
 
 func (s *Server) Stop() {
+	s.logger.Info("server stopping")
+
 	s.cancel()
 	if s.ln != nil {
 		_ = s.ln.Close()
@@ -217,6 +234,7 @@ func (s *Server) Stop() {
 	s.mu.Unlock()
 
 	s.wg.Wait()
+	s.logger.Info("server stopped")
 }
 
 // ======================
@@ -238,6 +256,10 @@ func (s *Server) acceptLoop() {
 		}
 
 		if !s.allowAccept() {
+			s.logger.Warn("reject connection: maxConn reached",
+				"maxConn", s.maxConn,
+				"active", s.metrics.active.Load(),
+			)
 			_ = conn.Close()
 			continue
 		}
@@ -252,6 +274,10 @@ func (s *Server) acceptLoop() {
 
 		if s.handler != nil {
 			if err := s.handler.OnAccept(c); err != nil {
+				s.logger.Warn("connection rejected by handler",
+					"connID", c.ID,
+					"err", err,
+				)
 				_ = conn.Close()
 				continue
 			}
@@ -282,6 +308,11 @@ func (s *Server) register(c *ConnContext) {
 	s.mu.Unlock()
 
 	s.metrics.active.Add(1)
+
+	s.logger.Debug("connection accepted",
+		"connID", c.ID,
+		"active", s.metrics.active.Load(),
+	)
 }
 
 // ======================
@@ -315,7 +346,12 @@ func (s *Server) reapIdle() {
 	defer s.mu.Unlock()
 
 	for _, c := range s.conns {
-		if now.Sub(c.LastActiveTime()) > s.idleTimeout {
+		idle := now.Sub(c.LastActiveTime())
+		if idle > s.idleTimeout {
+			s.logger.Info("idle kick",
+				"connID", c.ID,
+				"idle", idle.String(),
+			)
 			s.kickConnLocked(c, ErrIdleTimeout)
 		}
 	}
@@ -351,6 +387,8 @@ func (s *Server) KickAll(reason error) {
 		s.kickConnLocked(c, reason)
 	}
 	s.mu.Unlock()
+
+	s.logger.Info("kick all connections", "reason", reason)
 }
 
 // -------- tag 管理 --------
@@ -365,6 +403,13 @@ func (s *Server) KickByTag(key, value string, reason error) int {
 		}
 	}
 	s.mu.Unlock()
+
+	s.logger.Info("kick by tag",
+		"key", key,
+		"value", value,
+		"count", n,
+		"reason", reason,
+	)
 	return n
 }
 
@@ -394,9 +439,7 @@ func (s *Server) closeConn(c *ConnContext, reason error) {
 		s.mu.Unlock()
 
 		s.metrics.active.Add(-1)
-		if s.handler != nil {
-			s.handler.OnDisconnect(c, reason)
-		}
+		s.safeOnDisconnect(c, reason)
 	})
 }
 
@@ -412,9 +455,7 @@ func (s *Server) kickConn(c *ConnContext, reason error) {
 		s.metrics.active.Add(-1)
 		s.metrics.kicked.Add(1)
 
-		if s.handler != nil {
-			s.handler.OnDisconnect(c, reason)
-		}
+		s.safeOnDisconnect(c, reason)
 	})
 }
 
@@ -424,9 +465,7 @@ func (s *Server) closeConnLocked(c *ConnContext, reason error) {
 		_ = c.Conn.Close()
 		delete(s.conns, c.ID)
 		s.metrics.active.Add(-1)
-		if s.handler != nil {
-			s.handler.OnDisconnect(c, reason)
-		}
+		s.safeOnDisconnect(c, reason)
 	})
 }
 
@@ -437,10 +476,27 @@ func (s *Server) kickConnLocked(c *ConnContext, reason error) {
 		delete(s.conns, c.ID)
 		s.metrics.active.Add(-1)
 		s.metrics.kicked.Add(1)
-		if s.handler != nil {
-			s.handler.OnDisconnect(c, reason)
-		}
+		s.safeOnDisconnect(c, reason)
 	})
+}
+
+// ======================
+// handler safety
+// ======================
+
+func (s *Server) safeOnDisconnect(c *ConnContext, reason error) {
+	if s.handler == nil {
+		return
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			s.logger.Error("panic in handler.OnDisconnect",
+				"connID", c.ID,
+				"panic", r,
+			)
+		}
+	}()
+	s.handler.OnDisconnect(c, reason)
 }
 
 // ======================
