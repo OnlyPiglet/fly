@@ -10,26 +10,6 @@ import (
 	"time"
 )
 
-/**
-
-		┌─────────────────────────────┐
-		│        Server (Control)     │
-		│ ┌────────────┐  ┌────────┐ │
-		│ │ ConnTable  │  │ Reaper │ │
-		│ └────────────┘  └────────┘ │
-		│ ┌────────────┐  ┌────────┐ │
-		│ │  Metrics   │  │ Limiter│ │
-		│ └────────────┘  └────────┘ │
-		└─────────▲──────────────────┘
-				  │
-				  │ ConnContext
-				  ▼
-		┌─────────────────────────────┐
-		│     Business Handler        │
-		│   (Read / Write / Protocol)│
-		└─────────────────────────────┘
-**/
-
 var (
 	ErrMaxConnReached = errors.New("max connection reached")
 	ErrIdleTimeout    = errors.New("idle timeout")
@@ -44,7 +24,7 @@ type ConnState int32
 
 const (
 	StateActive ConnState = iota
-	StateIdle             // 预留：如果你未来要严格区分 idle/active，可以用它
+	StateIdle
 	StateKicked
 	StateClosed
 )
@@ -58,20 +38,23 @@ type ConnContext struct {
 	Conn     net.Conn
 	CreateAt time.Time
 
-	lastActive atomic.Int64 // unix nano
+	lastActive atomic.Int64
 	state      atomic.Int32
+
+	// tag / tenant / region
+	tags  map[string]string
+	tagMu sync.RWMutex
 
 	closeOnce sync.Once
 }
 
-// Touch：业务方在读写/处理到数据时调用，用于刷新活跃时间（Server 不接管 IO，所以需要业务协作）
+// Touch 刷新活跃时间（业务调用）
 func (c *ConnContext) Touch() {
-	now := time.Now().UnixNano()
-	c.lastActive.Store(now)
+	c.lastActive.Store(time.Now().UnixNano())
 	c.state.Store(int32(StateActive))
 }
 
-// LastActiveTime：用于 idleReaper 判断是否超时
+// LastActiveTime 返回最近活跃时间
 func (c *ConnContext) LastActiveTime() time.Time {
 	n := c.lastActive.Load()
 	if n == 0 {
@@ -84,13 +67,39 @@ func (c *ConnContext) State() ConnState {
 	return ConnState(c.state.Load())
 }
 
+// -------- tag API --------
+
+func (c *ConnContext) SetTag(key, value string) {
+	c.tagMu.Lock()
+	c.tags[key] = value
+	c.tagMu.Unlock()
+}
+
+func (c *ConnContext) GetTag(key string) (string, bool) {
+	c.tagMu.RLock()
+	v, ok := c.tags[key]
+	c.tagMu.RUnlock()
+	return v, ok
+}
+
+func (c *ConnContext) AllTags() map[string]string {
+	c.tagMu.RLock()
+	defer c.tagMu.RUnlock()
+
+	cp := make(map[string]string, len(c.tags))
+	for k, v := range c.tags {
+		cp[k] = v
+	}
+	return cp
+}
+
 // ======================
 // Metrics
 // ======================
 
 type Metrics struct {
 	active atomic.Int64
-	idle   atomic.Int64 // 预留：如果未来你想严格维护 idle/active，这里可用
+	idle   atomic.Int64
 	kicked atomic.Int64
 }
 
@@ -99,13 +108,11 @@ func (m *Metrics) Idle() int64   { return m.idle.Load() }
 func (m *Metrics) Kicked() int64 { return m.kicked.Load() }
 
 // ======================
-// Handler（可选）
+// Handler
 // ======================
 
 type Handler interface {
-	// OnAccept: 返回 error 则拒绝该连接（例如鉴权失败/黑名单/限流等）
 	OnAccept(ctx *ConnContext) error
-	// OnDisconnect: 连接被关闭/被踢/超时等回调
 	OnDisconnect(ctx *ConnContext, reason error)
 }
 
@@ -148,7 +155,6 @@ func WithIdleTimeout(d time.Duration) Option {
 	return func(s *Server) { s.idleTimeout = d }
 }
 
-// idle 扫描间隔（默认 1min）；如果你希望更快踢 idle，可调小，比如 10s
 func WithReapTick(d time.Duration) Option {
 	return func(s *Server) { s.reapTick = d }
 }
@@ -191,7 +197,6 @@ func (s *Server) Start() error {
 	}
 	s.ln = ln
 
-	// acceptLoop / idleReaper 都是 server 自己的 goroutine
 	s.wg.Add(2)
 	go s.acceptLoop()
 	go s.idleReaper()
@@ -200,22 +205,17 @@ func (s *Server) Start() error {
 }
 
 func (s *Server) Stop() {
-	// 1) 广播退出
 	s.cancel()
-
-	// 2) 关闭 listener，打断 Accept
 	if s.ln != nil {
 		_ = s.ln.Close()
 	}
 
-	// 3) 关闭所有连接（并发安全：注意 closeConn 内部会删 map）
 	s.mu.Lock()
 	for _, c := range s.conns {
-		s.closeConnLocked(c, ErrServerClosed) // 注意：这里用 Locked 版本避免重复锁
+		s.closeConnLocked(c, ErrServerClosed)
 	}
 	s.mu.Unlock()
 
-	// 4) 等待 goroutine 退出
 	s.wg.Wait()
 }
 
@@ -233,12 +233,10 @@ func (s *Server) acceptLoop() {
 			case <-s.ctx.Done():
 				return
 			default:
-				// listener 抖动/临时错误：继续
 				continue
 			}
 		}
 
-		// 超限：直接拒绝（不进入 conns map）
 		if !s.allowAccept() {
 			_ = conn.Close()
 			continue
@@ -248,10 +246,10 @@ func (s *Server) acceptLoop() {
 			ID:       s.generateID(conn),
 			Conn:     conn,
 			CreateAt: time.Now(),
+			tags:     make(map[string]string),
 		}
-		c.Touch() // 初始化 lastActive
+		c.Touch()
 
-		// 可选：业务层拒绝连接（鉴权/黑名单等）
 		if s.handler != nil {
 			if err := s.handler.OnAccept(c); err != nil {
 				_ = conn.Close()
@@ -271,7 +269,6 @@ func (s *Server) allowAccept() bool {
 	if s.maxConn <= 0 {
 		return true
 	}
-	// 这里是“近似限制”，高并发下可能短暂超出 1~N 个，换来更高吞吐；工具库通常接受这种权衡
 	return int(s.metrics.active.Load()) < s.maxConn
 }
 
@@ -314,69 +311,20 @@ func (s *Server) reapIdle() {
 
 	now := time.Now()
 
-	// 注意：range map 的时候必须持锁
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	for _, c := range s.conns {
 		if now.Sub(c.LastActiveTime()) > s.idleTimeout {
-			s.kickConnLocked(c, ErrIdleTimeout) // locked 版本避免死锁
+			s.kickConnLocked(c, ErrIdleTimeout)
 		}
 	}
 }
 
-/**
-
-        idle
-		 ↓
-	  kickConn
-		 ↘
-stop → closeOnce → cleanup → CLOSED
-		 ↗
-	  closeConn
-		 ↑
-	 read error
-
-
-*/
-/*
-
-	1️⃣ 现实中「关闭触发是并发的」,所以通过 closeOnce 进行收敛
-
-	举几个真实的并发触发场景（这些在生产里一定会发生）：
-
-	场景 A：idle + 业务同时触发
-	idleReaper goroutine      业务 goroutine
-		   |                        |
-		   | idle timeout           | conn.Read() 出错
-		   | kickConn()             | closeConn()
-		   |                        |
-		   +---------- race --------+
-
-	场景 B：Stop + KickByID
-	Server.Stop()        管控接口
-	   |                    |
-	   | kickAll()          | KickByID()
-	   |                    |
-	   +-------- race ------+
-
-	场景 C：Stop + idleReaper tick
-	idleReaper           Stop()
-		 |                 |
-		 | tick            | cancel()
-		 | kickConn()      | closeConn()
-		 +------- race ----+
-
-
-	👉 这些触发路径是“独立 goroutine 并发发生”的
-*/
-
 // ======================
-// closeConn / kickConn
-// 说明：提供 public 入口 + 内部 Locked 版本，避免“持锁再调用导致重复锁/死锁”
+// close / kick
 // ======================
 
-// CloseByID：业务主动关闭
 func (s *Server) CloseByID(id string, reason error) {
 	s.mu.Lock()
 	c := s.conns[id]
@@ -387,7 +335,6 @@ func (s *Server) CloseByID(id string, reason error) {
 	}
 }
 
-// KickByID：业务主动踢人
 func (s *Server) KickByID(id string, reason error) {
 	s.mu.Lock()
 	c := s.conns[id]
@@ -398,7 +345,6 @@ func (s *Server) KickByID(id string, reason error) {
 	}
 }
 
-// KickAll：踢全部（比如灰度回滚/发布重启）
 func (s *Server) KickAll(reason error) {
 	s.mu.Lock()
 	for _, c := range s.conns {
@@ -407,33 +353,56 @@ func (s *Server) KickAll(reason error) {
 	s.mu.Unlock()
 }
 
-// closeConn：不要求调用方持锁
+// -------- tag 管理 --------
+
+func (s *Server) KickByTag(key, value string, reason error) int {
+	n := 0
+	s.mu.Lock()
+	for _, c := range s.conns {
+		if v, ok := c.GetTag(key); ok && v == value {
+			s.kickConnLocked(c, reason)
+			n++
+		}
+	}
+	s.mu.Unlock()
+	return n
+}
+
+func (s *Server) CountByTag(key, value string) int {
+	cnt := 0
+	s.mu.Lock()
+	for _, c := range s.conns {
+		if v, ok := c.GetTag(key); ok && v == value {
+			cnt++
+		}
+	}
+	s.mu.Unlock()
+	return cnt
+}
+
+// ======================
+// close helpers
+// ======================
+
 func (s *Server) closeConn(c *ConnContext, reason error) {
 	c.closeOnce.Do(func() {
 		c.state.Store(int32(StateClosed))
-
-		// 先关 conn，尽快释放 fd
 		_ = c.Conn.Close()
 
-		// 删除 map（必须持锁）
 		s.mu.Lock()
-		// 如果已经被其他路径删了，delete 是安全的
 		delete(s.conns, c.ID)
 		s.mu.Unlock()
 
 		s.metrics.active.Add(-1)
-
 		if s.handler != nil {
 			s.handler.OnDisconnect(c, reason)
 		}
 	})
 }
 
-// kickConn：不要求调用方持锁
 func (s *Server) kickConn(c *ConnContext, reason error) {
 	c.closeOnce.Do(func() {
 		c.state.Store(int32(StateKicked))
-
 		_ = c.Conn.Close()
 
 		s.mu.Lock()
@@ -449,35 +418,25 @@ func (s *Server) kickConn(c *ConnContext, reason error) {
 	})
 }
 
-// closeConnLocked：调用方必须已持有 s.mu
 func (s *Server) closeConnLocked(c *ConnContext, reason error) {
 	c.closeOnce.Do(func() {
 		c.state.Store(int32(StateClosed))
-
 		_ = c.Conn.Close()
-
 		delete(s.conns, c.ID)
-
 		s.metrics.active.Add(-1)
-
 		if s.handler != nil {
 			s.handler.OnDisconnect(c, reason)
 		}
 	})
 }
 
-// kickConnLocked：调用方必须已持有 s.mu
 func (s *Server) kickConnLocked(c *ConnContext, reason error) {
 	c.closeOnce.Do(func() {
 		c.state.Store(int32(StateKicked))
-
 		_ = c.Conn.Close()
-
 		delete(s.conns, c.ID)
-
 		s.metrics.active.Add(-1)
 		s.metrics.kicked.Add(1)
-
 		if s.handler != nil {
 			s.handler.OnDisconnect(c, reason)
 		}
@@ -488,14 +447,16 @@ func (s *Server) kickConnLocked(c *ConnContext, reason error) {
 // Metrics API
 // ======================
 
-func (s *Server) Metrics() Metrics {
-	// atomic 字段可直接拷贝使用（读 Load 即可）
-	return s.metrics
+func (s *Server) Metrics() Metrics { return s.metrics }
+func (s *Server) ActiveConn() int64 {
+	return s.metrics.Active()
 }
-
-func (s *Server) ActiveConn() int64 { return s.metrics.Active() }
-func (s *Server) IdleConn() int64   { return s.metrics.Idle() } // 预留
-func (s *Server) KickedConn() int64 { return s.metrics.Kicked() }
+func (s *Server) IdleConn() int64 {
+	return s.metrics.Idle()
+}
+func (s *Server) KickedConn() int64 {
+	return s.metrics.Kicked()
+}
 
 // ======================
 // Helpers
@@ -503,6 +464,5 @@ func (s *Server) KickedConn() int64 { return s.metrics.Kicked() }
 
 func (s *Server) generateID(conn net.Conn) string {
 	seq := s.idSeq.Add(1)
-	// remote + seq + nano：足够唯一且可读
-	return fmt.Sprintf("%s-%d-%d", conn.RemoteAddr().String(), seq, time.Now().UnixNano())
+	return fmt.Sprintf("%s-%d-%d", conn.RemoteAddr(), seq, time.Now().UnixNano())
 }
