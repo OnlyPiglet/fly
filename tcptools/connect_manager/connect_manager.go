@@ -4,11 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/OnlyPiglet/fly/logtools"
 	"net"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/OnlyPiglet/fly/logtools"
 )
 
 var (
@@ -184,7 +185,7 @@ func New(addr string, opts ...Option) *Server {
 		conns:       make(map[string]*ConnContext),
 		ctx:         ctx,
 		cancel:      cancel,
-		logger:      logtools.NewLog(), // fallback
+		logger:      logtools.NewXLog(), // fallback
 	}
 
 	for _, opt := range opts {
