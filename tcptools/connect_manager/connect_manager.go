@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/OnlyPiglet/fly/logtools"
+	"github.com/OnlyPiglet/fly/tcptools"
 )
 
 var (
@@ -246,23 +247,25 @@ func (s *Server) acceptLoop() {
 	defer s.wg.Done()
 
 	for {
+		// 先检查 context 是否已取消，避免在已关闭的 listener 上调用 Accept
+		select {
+		case <-s.ctx.Done():
+			return
+		default:
+		}
+
 		conn, err := s.ln.Accept()
 		if err != nil {
+			// 如果 context 已取消，说明是正常关闭，直接返回
 			select {
 			case <-s.ctx.Done():
 				return
 			default:
-				continue
+				// 如果 listener 被关闭（非 context 取消），也应该退出
+				// 因为此时 Accept 会返回 "use of closed network connection" 错误
+				// 继续循环会不断重试，应该退出
+				return
 			}
-		}
-
-		if !s.allowAccept() {
-			s.logger.Warn("reject connection: maxConn reached",
-				"maxConn", s.maxConn,
-				"active", s.metrics.active.Load(),
-			)
-			_ = conn.Close()
-			continue
 		}
 
 		c := &ConnContext{
@@ -279,41 +282,53 @@ func (s *Server) acceptLoop() {
 					"connID", c.ID,
 					"err", err,
 				)
-				_ = conn.Close()
+				if tc, ok := conn.(*net.TCPConn); ok {
+					tcptools.ResetTcpConn(tc)
+				}
 				continue
 			}
 		}
 
-		s.register(c)
+		if !s.register(c) {
+			s.logger.Warn("reject connection: maxConn reached",
+				"maxConn", s.maxConn,
+				"active", s.metrics.active.Load(),
+			)
+			if tc, ok := conn.(*net.TCPConn); ok {
+				tcptools.ResetTcpConn(tc)
+			}
+			continue
+		}
 	}
-}
-
-// ======================
-// allowAccept
-// ======================
-
-func (s *Server) allowAccept() bool {
-	if s.maxConn <= 0 {
-		return true
-	}
-	return int(s.metrics.active.Load()) < s.maxConn
 }
 
 // ======================
 // register
 // ======================
 
-func (s *Server) register(c *ConnContext) {
+// register 注册连接，返回是否成功注册
+// 如果超过最大连接数限制，会原子性地回滚计数并返回 false
+func (s *Server) register(c *ConnContext) bool {
+	// 先原子性地增加计数
+	newCount := s.metrics.active.Add(1)
+
+	// 检查是否超过限制
+	if s.maxConn > 0 && int(newCount) > s.maxConn {
+		// 超过限制，回滚计数
+		s.metrics.active.Add(-1)
+		return false
+	}
+
+	// 在限制内，加入到 map
 	s.mu.Lock()
 	s.conns[c.ID] = c
 	s.mu.Unlock()
-
-	s.metrics.active.Add(1)
 
 	s.logger.Debug("connection accepted",
 		"connID", c.ID,
 		"active", s.metrics.active.Load(),
 	)
+	return true
 }
 
 // ======================
@@ -392,28 +407,45 @@ func (s *Server) KickAll(reason error) {
 	s.logger.Info("kick all connections", "reason", reason)
 }
 
-// -------- tag 管理 --------
+// ======================
+// Query API
+// ======================
 
-func (s *Server) KickByTag(key, value string, reason error) int {
-	n := 0
+// GetConn 根据ID获取连接上下文
+func (s *Server) GetConn(id string) (*ConnContext, bool) {
+	s.mu.Lock()
+	c, ok := s.conns[id]
+	s.mu.Unlock()
+	return c, ok
+}
+
+// FindByTag 根据标签查找连接，返回匹配的连接列表
+func (s *Server) FindByTag(key, value string) []*ConnContext {
+	var result []*ConnContext
 	s.mu.Lock()
 	for _, c := range s.conns {
 		if v, ok := c.GetTag(key); ok && v == value {
-			s.kickConnLocked(c, reason)
-			n++
+			result = append(result, c)
 		}
 	}
 	s.mu.Unlock()
-
-	s.logger.Info("kick by tag",
-		"key", key,
-		"value", value,
-		"count", n,
-		"reason", reason,
-	)
-	return n
+	return result
 }
 
+// FilterByTag 根据标签键查找所有匹配的连接，按标签值分组返回
+func (s *Server) FilterByTag(key string) map[string][]*ConnContext {
+	result := make(map[string][]*ConnContext)
+	s.mu.Lock()
+	for _, c := range s.conns {
+		if v, ok := c.GetTag(key); ok {
+			result[v] = append(result[v], c)
+		}
+	}
+	s.mu.Unlock()
+	return result
+}
+
+// CountByTag 统计指定标签的连接数量（便捷方法）
 func (s *Server) CountByTag(key, value string) int {
 	cnt := 0
 	s.mu.Lock()

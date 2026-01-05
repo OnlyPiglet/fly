@@ -1,5 +1,7 @@
 package tcptools
 
+import "net"
+
 const (
 	TCP_ESTABLISHED = iota + 0x01
 	TCP_SYN_SENT
@@ -38,4 +40,11 @@ func TcpState2String(state uint8) string {
 
 func Listen(state uint8) bool {
 	return state == TCP_LISTEN
+}
+
+// ResetTcpConn 发送 TCP RST 包关闭连接（而非正常的 FIN）
+// 设置 SO_LINGER=0 后调用 Close，操作系统会发送 RST 而不是 FIN
+func ResetTcpConn(tc *net.TCPConn) {
+	_ = tc.SetLinger(0)
+	_ = tc.Close()
 }
