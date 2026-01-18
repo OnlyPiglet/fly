@@ -20,6 +20,20 @@ func Go(fn func()) {
 	}()
 }
 
+// SafeRun 安全执行函数，捕获panic并转换为error
+// 返回函数执行结果和错误（包括panic转换的错误）
+func SafeRun[T any](fn func() (T, error)) (result T, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			// 将panic转换为error
+			err = fmt.Errorf("panic recovered: %v\nstack trace:\n%s", r, debug.Stack())
+		}
+	}()
+
+	result, err = fn()
+	return
+}
+
 // Frame 表示一个堆栈帧
 type Frame struct {
 	File     string `json:"file"`     // 文件路径
